@@ -1,20 +1,44 @@
 ﻿<Window x:Class="GGOverlay.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Host/Join Application" Height="300" Width="400">
-    <Grid>
-        <Button x:Name="HostButton" Content="Host Server" Width="120" Height="40" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="HostButton_Click"/>
-        <Button x:Name="JoinButton" Content="Join Server" Width="120" Height="40" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,60,0,0" Click="JoinButton_Click"/>
+        xmlns:local="clr-namespace:GGOverlay"
+        Title="Host/Join Application" Height="400" Width="500">
+    <Window.Resources>
+        <!-- Register the converter -->
+        <local:EmptyStringToVisibilityConverter x:Key="EmptyStringToVisibilityConverter"/>
+    </Window.Resources>
 
-        <!-- TextBox with Placeholder functionality -->
-        <Grid Margin="150,60,0,0">
-            <TextBox x:Name="IpAddressTextBox" Width="180" Height="30" VerticalAlignment="Top"/>
-            <TextBlock x:Name="PlaceholderText" Text="Enter IP Address" 
-                   VerticalAlignment="Center" Margin="5,0,0,0"
-                   Foreground="Gray" IsHitTestVisible="False" />
-        </Grid>
+    <Grid Margin="10">
+        <!-- Host and Join Buttons -->
+        <Button x:Name="HostButton" Content="Host Server" Width="120" Height="40" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,0,10,0" Click="HostButton_Click"/>
+        <Button x:Name="JoinButton" Content="Join Server" Width="120" Height="40" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,60,10,0" Click="JoinButton_Click"/>
 
-        <TextBox x:Name="LogTextBox" Width="360" Height="120" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,120,0,0" IsReadOnly="True"/>
+        <!-- IP Address Input -->
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="140,0,0,0">
+            <TextBlock Text="Server IP Address:" Margin="0,10,0,0" FontWeight="Bold"/>
+            <Grid Margin="0,5,0,0">
+                <TextBox x:Name="IpAddressTextBox" Width="200" Height="30"/>
+                <TextBlock Text="Enter IP Address" IsHitTestVisible="False" 
+                           Foreground="Gray" VerticalAlignment="Center" 
+                           Margin="5,0,0,0" 
+                           Visibility="{Binding Text, ElementName=IpAddressTextBox, Converter={StaticResource EmptyStringToVisibilityConverter}}"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- Counter Display and Controls -->
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,120,0,0">
+            <TextBlock Text="Counter Value:" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <TextBox x:Name="CounterTextBox" Width="60" Height="40" Text="0" IsReadOnly="True" TextAlignment="Center" FontSize="20" Margin="0,5,0,0"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button x:Name="MinusButton" Content="-" Width="40" Height="40" Click="MinusButton_Click"/>
+                <Button x:Name="PlusButton" Content="+" Width="40" Height="40" Margin="20,0,0,0" Click="PlusButton_Click"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Log TextBox -->
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="0,10,0,0">
+            <TextBlock Text="Log:" FontWeight="Bold"/>
+            <TextBox x:Name="LogTextBox" Width="460" Height="120" IsReadOnly="True" Margin="0,5,0,0"/>
+        </StackPanel>
     </Grid>
-
 </Window>
