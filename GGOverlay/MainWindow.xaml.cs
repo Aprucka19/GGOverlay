@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
+using System;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
@@ -78,7 +80,7 @@ namespace GGOverlay
             }
         }
 
-        // Receive data from a connected client
+        // Receive data from a connected client or server
         private async Task ReceiveDataAsync(TcpClient client)
         {
             NetworkStream stream = client.GetStream();
@@ -94,7 +96,7 @@ namespace GGOverlay
                 {
                     if (int.TryParse(message.Substring(8), out int newValue))
                     {
-                        UpdateCounter(newValue);
+                        UpdateCounter(newValue, false); // false indicates not to send back the value to avoid a loop
                     }
                 }
             }
@@ -105,7 +107,7 @@ namespace GGOverlay
         }
 
         // Update the counter value and display it
-        private void UpdateCounter(int newValue)
+        private void UpdateCounter(int newValue, bool broadcast)
         {
             _counterValue = newValue;
             Application.Current.Dispatcher.Invoke(() =>
@@ -113,20 +115,23 @@ namespace GGOverlay
                 CounterTextBox.Text = _counterValue.ToString();
             });
 
-            // Broadcast the updated counter value to all connected clients
-            BroadcastCounterValue(_counterValue);
+            // Broadcast the updated counter value to all connected clients if needed
+            if (broadcast)
+            {
+                BroadcastCounterValue(_counterValue);
+            }
         }
 
         // Method for the Plus button click
         private void PlusButton_Click(object sender, RoutedEventArgs e)
         {
-            UpdateCounter(_counterValue + 1);
+            UpdateCounter(_counterValue + 1, true); // Increment and broadcast
         }
 
         // Method for the Minus button click
         private void MinusButton_Click(object sender, RoutedEventArgs e)
         {
-            UpdateCounter(_counterValue - 1);
+            UpdateCounter(_counterValue - 1, true); // Decrement and broadcast
         }
 
         // Send the counter value to a specific client
@@ -160,6 +165,19 @@ namespace GGOverlay
                     }
                 }
             }
+
+            // If this client is also connected as a client, send the update to the server
+            if (_client != null && _client.Connected)
+            {
+                try
+                {
+                    await _client.GetStream().WriteAsync(data, 0, data.Length);
+                }
+                catch (Exception ex)
+                {
+                    Log($"Error sending to server: {ex.Message}");
+                }
+            }
         }
 
         // Log messages to the TextBox
@@ -172,6 +190,8 @@ namespace GGOverlay
             });
         }
     }
+
+
 
 
     public class EmptyStringToVisibilityConverter : IValueConverter
