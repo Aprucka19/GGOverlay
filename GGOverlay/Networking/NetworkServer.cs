@@ -61,7 +61,7 @@ namespace GGOverlay.Networking
         private async Task ReceiveDataAsync(TcpClient client)
         {
             NetworkStream stream = client.GetStream();
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[4096];
             int bytesRead;
 
             try
@@ -71,13 +71,27 @@ namespace GGOverlay.Networking
                     string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                     Log($"Received from client: {message}");
 
-                    // Deserialize the message and apply changes generically
-                    var change = JsonConvert.DeserializeObject<Dictionary<string, object>>(message);
-                    string query = change["Query"].ToString();
-                    var parameters = (Dictionary<string, object>)change["Parameters"];
+                    try
+                    {
+                        // Deserialize the received message
+                        var change = JsonConvert.DeserializeObject<Dictionary<string, object>>(message);
 
-                    // Execute the change on the server's database
-                    _databaseManager.ExecuteNonQuery(query, parameters);
+                        // Extract the query and parameters correctly using JObject
+                        string query = change["Query"].ToString();
+
+                        // Convert 'Parameters' from JObject to Dictionary<string, object>
+                        var parameters = ((Newtonsoft.Json.Linq.JObject)change["Parameters"]).ToObject<Dictionary<string, object>>();
+
+                        // Execute the query with the extracted parameters
+                        _databaseManager.ExecuteNonQuery(query, parameters, suppressBroadcast: true);
+
+                        // Optionally, broadcast to other clients if needed
+                        BroadcastChangeToOthers(change, client);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"Error processing data from client: {ex.Message}");
+                    }
                 }
             }
             catch (Exception ex)
@@ -91,6 +105,29 @@ namespace GGOverlay.Networking
                 Log("Client disconnected.");
             }
         }
+
+
+        private async void BroadcastChangeToOthers(Dictionary<string, object> change, TcpClient sender)
+        {
+            byte[] data = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(change));
+
+            foreach (TcpClient client in _connectedClients)
+            {
+                if (client != sender && client.Connected)
+                {
+                    try
+                    {
+                        await client.GetStream().WriteAsync(data, 0, data.Length);
+                        Log("Broadcasted change to other clients.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"Error sending to client: {ex.Message}");
+                    }
+                }
+            }
+        }
+
 
         private async Task SendInitialDatabaseStateAsync(TcpClient client)
         {

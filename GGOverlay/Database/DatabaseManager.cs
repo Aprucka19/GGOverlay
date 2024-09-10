@@ -10,7 +10,10 @@ namespace GGOverlay.Database
         private readonly string _connectionString;
 
         // Event to notify changes in a generic format
-        public event Action<string> OnDatabaseChanged;  // Serialized change message
+        public event Action<string> OnDatabaseChanged;
+
+        // Flag to suppress broadcasting of changes
+        private bool _suppressBroadcast = false;
 
         public DatabaseManager(string databasePath)
         {
@@ -18,7 +21,7 @@ namespace GGOverlay.Database
         }
 
         // Generic method to execute non-query SQL commands (INSERT, UPDATE, DELETE)
-        public void ExecuteNonQuery(string query, Dictionary<string, object> parameters)
+        public void ExecuteNonQuery(string query, Dictionary<string, object> parameters, bool suppressBroadcast = false)
         {
             using (var connection = new SQLiteConnection(_connectionString))
             {
@@ -33,8 +36,17 @@ namespace GGOverlay.Database
                 }
             }
 
-            // Broadcast changes to clients or host
-            BroadcastChange(query, parameters);
+            // Set the suppression flag based on input
+            _suppressBroadcast = suppressBroadcast;
+
+            // Broadcast changes to clients or host if not suppressed
+            if (!_suppressBroadcast)
+            {
+                BroadcastChange(query, parameters);
+            }
+
+            // Reset the suppression flag
+            _suppressBroadcast = false;
         }
 
         // Method to serialize and broadcast changes to connected clients or the host
@@ -47,7 +59,7 @@ namespace GGOverlay.Database
             };
 
             string serializedChange = JsonConvert.SerializeObject(changeMessage);
-            OnDatabaseChanged?.Invoke(serializedChange); // Notify about the change
+            OnDatabaseChanged?.Invoke(serializedChange);
         }
 
         // Retrieves all data from the entire database, used for syncing initial states

@@ -33,7 +33,7 @@ namespace GGOverlay.Networking
                 else
                 {
                     Log($"Error connecting to server: {task.Exception?.Message}");
-                    OnDataReceived?.Invoke("Error connecting to server.");
+
                 }
             });
         }
@@ -58,7 +58,7 @@ namespace GGOverlay.Networking
         private async Task ReceiveDataAsync()
         {
             NetworkStream stream = _client.GetStream();
-            byte[] buffer = new byte[4096]; // Increase buffer size to accommodate larger data
+            byte[] buffer = new byte[4096];
             int bytesRead;
 
             try
@@ -67,7 +67,6 @@ namespace GGOverlay.Networking
                 {
                     string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                     Log($"Received from server: {message}");
-                    OnDataReceived?.Invoke(message);
 
                     // Try to deserialize as a full database state first
                     try
@@ -87,7 +86,15 @@ namespace GGOverlay.Networking
                     try
                     {
                         var change = JsonConvert.DeserializeObject<Dictionary<string, object>>(message);
-                        _databaseManager.ExecuteNonQuery(change["Query"].ToString(), (Dictionary<string, object>)change["Parameters"]);
+
+                        // Extract the query and parameters correctly using JObject
+                        string query = change["Query"].ToString();
+
+                        // Convert 'Parameters' from JObject to Dictionary<string, object>
+                        var parameters = ((Newtonsoft.Json.Linq.JObject)change["Parameters"]).ToObject<Dictionary<string, object>>();
+
+                        // Execute the query with the extracted parameters, suppressing broadcasts to avoid loops
+                        _databaseManager.ExecuteNonQuery(query, parameters, suppressBroadcast: true);
                     }
                     catch (Exception ex)
                     {
@@ -106,32 +113,39 @@ namespace GGOverlay.Networking
             }
         }
 
+
         // Handle the full state update from the server
         private void HandleFullStateUpdate(Dictionary<string, List<Dictionary<string, object>>> fullState)
         {
             // Clear current state and replace with the new state
             foreach (var tableName in fullState.Keys)
             {
-                // Example logic for clearing and repopulating the local database
-                _databaseManager.ExecuteNonQuery($"DELETE FROM {tableName};", new Dictionary<string, object>());
+                // Clear the table
+                _databaseManager.ExecuteNonQuery($"DELETE FROM {tableName};", new Dictionary<string, object>(), suppressBroadcast: true);
 
+                // Insert each row into the table
                 foreach (var row in fullState[tableName])
                 {
-                    var insertQuery = BuildInsertQuery(tableName, row);
-                    _databaseManager.ExecuteNonQuery(insertQuery, row);
+                    // Build insert query and parameters
+                    var insertQuery = BuildInsertQuery(tableName, row, out var parameters);
+                    _databaseManager.ExecuteNonQuery(insertQuery, parameters, suppressBroadcast: true);
                 }
             }
 
             Log("Full database state updated successfully.");
         }
 
+
         // Utility method to build an insert query from a row of data
-        private string BuildInsertQuery(string tableName, Dictionary<string, object> row)
+        private string BuildInsertQuery(string tableName, Dictionary<string, object> row, out Dictionary<string, object> parameters)
         {
             var columns = string.Join(", ", row.Keys);
-            var parameters = string.Join(", ", row.Keys);
-            return $"INSERT INTO {tableName} ({columns}) VALUES ({parameters});";
+            var placeholders = string.Join(", ", row.Keys.Select(k => "@" + k)); // Create placeholders like @Id, @Name
+            parameters = row.ToDictionary(k => "@" + k.Key, v => v.Value); // Create parameters with keys like @Id, @Name
+
+            return $"INSERT INTO {tableName} ({columns}) VALUES ({placeholders});";
         }
+
 
         private void Log(string message)
         {
