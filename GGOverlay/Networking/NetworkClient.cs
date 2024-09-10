@@ -2,7 +2,8 @@
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows;
+using Newtonsoft.Json;
+using GGOverlay.Database;
 
 namespace GGOverlay.Networking
 {
@@ -10,7 +11,14 @@ namespace GGOverlay.Networking
     {
         private TcpClient _client;
         private const int Port = 25565;
+        private DatabaseManager _databaseManager;
         public event Action<string> OnDataReceived;
+
+        public NetworkClient(DatabaseManager databaseManager)
+        {
+            _databaseManager = databaseManager;
+            _databaseManager.OnDatabaseChanged += SendDatabaseChange; // Send changes to server
+        }
 
         public void ConnectToServer(string ipAddress)
         {
@@ -30,29 +38,27 @@ namespace GGOverlay.Networking
             });
         }
 
-        public async Task SendCounterUpdateAsync(string counterName, int newValue)
+        private async void SendDatabaseChange(string changeMessage)
         {
             if (_client != null && _client.Connected)
             {
                 try
                 {
-                    string message = $"COUNTER:{counterName}:{newValue}";
-                    byte[] data = Encoding.UTF8.GetBytes(message);
+                    byte[] data = Encoding.UTF8.GetBytes(changeMessage);
                     await _client.GetStream().WriteAsync(data, 0, data.Length);
-                    Log($"Sent {counterName} update {newValue} to server.");
+                    Log("Sent database change to server.");
                 }
                 catch (Exception ex)
                 {
-                    Log($"Error sending counter update to server: {ex.Message}");
+                    Log($"Error sending change to server: {ex.Message}");
                 }
             }
         }
 
-
         private async Task ReceiveDataAsync()
         {
             NetworkStream stream = _client.GetStream();
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[4096]; // Increase buffer size to accommodate larger data
             int bytesRead;
 
             try
@@ -63,15 +69,29 @@ namespace GGOverlay.Networking
                     Log($"Received from server: {message}");
                     OnDataReceived?.Invoke(message);
 
-                    // Handle counter updates
-                    if (message.StartsWith("COUNTER:"))
+                    // Try to deserialize as a full database state first
+                    try
                     {
-                        var parts = message.Substring(8).Split(':');
-                        if (parts.Length == 2 && int.TryParse(parts[1], out int newValue))
+                        var fullState = JsonConvert.DeserializeObject<Dictionary<string, List<Dictionary<string, object>>>>(message);
+
+                        // If deserialization is successful, handle full state update
+                        if (fullState != null)
                         {
-                            string counterName = parts[0];
-                            UpdateCounterUI(counterName, newValue);
+                            HandleFullStateUpdate(fullState);
+                            continue; // Skip processing as a change message
                         }
+                    }
+                    catch (Exception) { /* Ignore and try as change message */ }
+
+                    // Deserialize and apply changes as individual updates
+                    try
+                    {
+                        var change = JsonConvert.DeserializeObject<Dictionary<string, object>>(message);
+                        _databaseManager.ExecuteNonQuery(change["Query"].ToString(), (Dictionary<string, object>)change["Parameters"]);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"Error processing data: {ex.Message}");
                     }
                 }
             }
@@ -86,31 +106,36 @@ namespace GGOverlay.Networking
             }
         }
 
-        // Method to update the UI with the new counter value
-        private void UpdateCounterUI(string counterName, int newValue)
+        // Handle the full state update from the server
+        private void HandleFullStateUpdate(Dictionary<string, List<Dictionary<string, object>>> fullState)
         {
-            Application.Current.Dispatcher.Invoke(() =>
+            // Clear current state and replace with the new state
+            foreach (var tableName in fullState.Keys)
             {
-                switch (counterName)
+                // Example logic for clearing and repopulating the local database
+                _databaseManager.ExecuteNonQuery($"DELETE FROM {tableName};", new Dictionary<string, object>());
+
+                foreach (var row in fullState[tableName])
                 {
-                    case "Counter1":
-                        ((MainWindow)Application.Current.MainWindow).Counter1TextBox.Text = newValue.ToString();
-                        break;
-                    case "Counter2":
-                        ((MainWindow)Application.Current.MainWindow).Counter2TextBox.Text = newValue.ToString();
-                        break;
-                    case "Counter3":
-                        ((MainWindow)Application.Current.MainWindow).Counter3TextBox.Text = newValue.ToString();
-                        break;
+                    var insertQuery = BuildInsertQuery(tableName, row);
+                    _databaseManager.ExecuteNonQuery(insertQuery, row);
                 }
-            });
+            }
+
+            Log("Full database state updated successfully.");
         }
 
+        // Utility method to build an insert query from a row of data
+        private string BuildInsertQuery(string tableName, Dictionary<string, object> row)
+        {
+            var columns = string.Join(", ", row.Keys);
+            var parameters = string.Join(", ", row.Keys);
+            return $"INSERT INTO {tableName} ({columns}) VALUES ({parameters});";
+        }
 
         private void Log(string message)
         {
             OnDataReceived?.Invoke(message);
         }
-
     }
 }

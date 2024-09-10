@@ -10,19 +10,27 @@ namespace GGOverlay
         private NetworkServer _networkServer;
         private NetworkClient _networkClient;
         private DatabaseManager _databaseManager;
+        private Counters _counters;
 
         public MainWindow()
         {
             InitializeComponent();
             _databaseManager = new DatabaseManager("shared_data.db");
             _networkServer = new NetworkServer(_databaseManager);
-            _networkClient = new NetworkClient();
+            _networkClient = new NetworkClient(_databaseManager);
+            _counters = new Counters(_databaseManager); // Initialize the Counters class
 
-            _networkServer.OnClientConnected += ClientConnected;
-            _networkServer.OnLogMessage += Log; // Subscribe to log messages from the server
+            _networkServer.OnLogMessage += Log;
             _networkClient.OnDataReceived += DataReceived;
 
+            // Ensure counters exist in the database, creating them if necessary
+            _counters.InitializeCounters(); // Ensure this method is public in Counters.cs
+
+            // Load initial state from the database
             LoadCounterValues();
+
+            // Subscribe to database change events to update the UI
+            _databaseManager.OnDatabaseChanged += UpdateUIFromDatabaseChange;
         }
 
         private void HostButton_Click(object sender, RoutedEventArgs e)
@@ -45,74 +53,65 @@ namespace GGOverlay
             }
         }
 
-        private async void Counter1PlusButton_Click(object sender, RoutedEventArgs e)
+        private void Counter1PlusButton_Click(object sender, RoutedEventArgs e)
         {
-            int newValue = _databaseManager.GetCounterValue("Counter1") + 1;
-            UpdateCounter("Counter1", newValue);
-            await _networkClient.SendCounterUpdateAsync("Counter1", newValue);
+            int currentValue = _counters.GetCounterValue("Counter1");
+            _counters.UpdateCounterValue("Counter1", currentValue + 1);
         }
 
-        private async void Counter1MinusButton_Click(object sender, RoutedEventArgs e)
+        private void Counter1MinusButton_Click(object sender, RoutedEventArgs e)
         {
-            int newValue = _databaseManager.GetCounterValue("Counter1") - 1;
-            UpdateCounter("Counter1", newValue);
-            await _networkClient.SendCounterUpdateAsync("Counter1", newValue);
+            int currentValue = _counters.GetCounterValue("Counter1");
+            _counters.UpdateCounterValue("Counter1", currentValue - 1);
         }
 
-        private async void Counter2PlusButton_Click(object sender, RoutedEventArgs e)
+        private void Counter2PlusButton_Click(object sender, RoutedEventArgs e)
         {
-            int newValue = _databaseManager.GetCounterValue("Counter2") + 1;
-            UpdateCounter("Counter2", newValue);
-            await _networkClient.SendCounterUpdateAsync("Counter2", newValue);
+            int currentValue = _counters.GetCounterValue("Counter2");
+            _counters.UpdateCounterValue("Counter2", currentValue + 1);
         }
 
-        private async void Counter2MinusButton_Click(object sender, RoutedEventArgs e)
+        private void Counter2MinusButton_Click(object sender, RoutedEventArgs e)
         {
-            int newValue = _databaseManager.GetCounterValue("Counter2") - 1;
-            UpdateCounter("Counter2", newValue);
-            await _networkClient.SendCounterUpdateAsync("Counter2", newValue);
+            int currentValue = _counters.GetCounterValue("Counter2");
+            _counters.UpdateCounterValue("Counter2", currentValue - 1);
         }
 
-        private async void Counter3PlusButton_Click(object sender, RoutedEventArgs e)
+        private void Counter3PlusButton_Click(object sender, RoutedEventArgs e)
         {
-            int newValue = _databaseManager.GetCounterValue("Counter3") + 1;
-            UpdateCounter("Counter3", newValue);
-            await _networkClient.SendCounterUpdateAsync("Counter3", newValue);
+            int currentValue = _counters.GetCounterValue("Counter3");
+            _counters.UpdateCounterValue("Counter3", currentValue + 1);
         }
 
-        private async void Counter3MinusButton_Click(object sender, RoutedEventArgs e)
+        private void Counter3MinusButton_Click(object sender, RoutedEventArgs e)
         {
-            int newValue = _databaseManager.GetCounterValue("Counter3") - 1;
-            UpdateCounter("Counter3", newValue);
-            await _networkClient.SendCounterUpdateAsync("Counter3", newValue);
+            int currentValue = _counters.GetCounterValue("Counter3");
+            _counters.UpdateCounterValue("Counter3", currentValue - 1);
         }
 
-
-        private void UpdateCounter(string counterName, int newValue)
+        // Update UI elements when database changes occur
+        private void UpdateUIFromDatabaseChange(string changeMessage)
         {
-            _networkServer.UpdateCounter(counterName, newValue);
-            LoadCounterValues();
+            Application.Current.Dispatcher.Invoke(() => LoadCounterValues());
         }
 
+        // Load counter values from the database into the UI
         private void LoadCounterValues()
         {
-            Counter1TextBox.Text = _databaseManager.GetCounterValue("Counter1").ToString();
-            Counter2TextBox.Text = _databaseManager.GetCounterValue("Counter2").ToString();
-            Counter3TextBox.Text = _databaseManager.GetCounterValue("Counter3").ToString();
+            Counter1TextBox.Text = _counters.GetCounterValue("Counter1").ToString();
+            Counter2TextBox.Text = _counters.GetCounterValue("Counter2").ToString();
+            Counter3TextBox.Text = _counters.GetCounterValue("Counter3").ToString();
         }
 
         private void Log(string message)
         {
-            // Use the Dispatcher to ensure the UI updates happen on the UI thread
             if (LogTextBox.Dispatcher.CheckAccess())
             {
-                // If already on the UI thread, update directly
                 LogTextBox.AppendText($"{message}\n");
                 LogTextBox.ScrollToEnd();
             }
             else
             {
-                // If not on the UI thread, invoke the update on the UI thread
                 LogTextBox.Dispatcher.Invoke(() =>
                 {
                     LogTextBox.AppendText($"{message}\n");
@@ -120,7 +119,6 @@ namespace GGOverlay
                 });
             }
         }
-
 
         private void ClientConnected(TcpClient client)
         {

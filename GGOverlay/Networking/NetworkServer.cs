@@ -4,8 +4,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows;  // Add this namespace to access Application and Dispatcher
 using GGOverlay.Database;
+using Newtonsoft.Json;
 
 namespace GGOverlay.Networking
 {
@@ -16,13 +16,12 @@ namespace GGOverlay.Networking
         private const int Port = 25565;
         private DatabaseManager _databaseManager;
 
-        // Delegate to handle log messages
         public event Action<string> OnLogMessage;
-        public event Action<TcpClient> OnClientConnected;
 
         public NetworkServer(DatabaseManager databaseManager)
         {
             _databaseManager = databaseManager;
+            _databaseManager.OnDatabaseChanged += HandleDatabaseChange;  // Subscribe to changes
         }
 
         public void StartServer()
@@ -49,29 +48,13 @@ namespace GGOverlay.Networking
                     var client = await _server.AcceptTcpClientAsync();
                     Log($"Client connected from {client.Client.RemoteEndPoint}");
                     _connectedClients.Add(client);
-                    OnClientConnected?.Invoke(client);
-                    await SendAllCounterValuesAsync(client);
+                    await SendInitialDatabaseStateAsync(client);  // Send initial state of the database
                     Task.Run(() => ReceiveDataAsync(client));
                 }
                 catch (Exception ex)
                 {
                     Log($"Error accepting client: {ex.Message}");
                 }
-            }
-        }
-
-        public void UpdateCounter(string counterName, int newValue)
-        {
-            try
-            {
-                _databaseManager.UpdateCounterValue(counterName, newValue);
-                Log($"Updated {counterName} to {newValue}");
-                UpdateCounterUI(counterName, newValue);  // Update the server UI
-                BroadcastCounterValue(counterName, newValue);
-            }
-            catch (Exception ex)
-            {
-                Log($"Error updating counter {counterName}: {ex.Message}");
             }
         }
 
@@ -88,18 +71,13 @@ namespace GGOverlay.Networking
                     string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                     Log($"Received from client: {message}");
 
-                    if (message.StartsWith("COUNTER:"))
-                    {
-                        var parts = message.Substring(8).Split(':');
-                        if (parts.Length == 2 && int.TryParse(parts[1], out int newValue))
-                        {
-                            string counterName = parts[0];
-                            UpdateCounter(counterName, newValue);
+                    // Deserialize the message and apply changes generically
+                    var change = JsonConvert.DeserializeObject<Dictionary<string, object>>(message);
+                    string query = change["Query"].ToString();
+                    var parameters = (Dictionary<string, object>)change["Parameters"];
 
-                            // Broadcast the received update to all clients
-                            BroadcastCounterValue(counterName, newValue);
-                        }
-                    }
+                    // Execute the change on the server's database
+                    _databaseManager.ExecuteNonQuery(query, parameters);
                 }
             }
             catch (Exception ex)
@@ -114,30 +92,31 @@ namespace GGOverlay.Networking
             }
         }
 
-        private async Task SendAllCounterValuesAsync(TcpClient client)
+        private async Task SendInitialDatabaseStateAsync(TcpClient client)
         {
-            var counters = _databaseManager.GetAllCounterValues();
-            foreach (var counter in counters)
+            try
             {
-                await SendCounterValueAsync(client, counter.Key, counter.Value);
-            }
-        }
+                // Retrieve the entire database state
+                var currentState = _databaseManager.GetAllData();
 
-        private async Task SendCounterValueAsync(TcpClient client, string counterName, int value)
-        {
-            if (client != null && client.Connected)
-            {
-                string message = $"COUNTER:{counterName}:{value}";
-                byte[] data = Encoding.UTF8.GetBytes(message);
+                // Serialize the current state
+                string serializedState = JsonConvert.SerializeObject(currentState);
+
+                // Send the serialized state to the client
+                byte[] data = Encoding.UTF8.GetBytes(serializedState);
                 await client.GetStream().WriteAsync(data, 0, data.Length);
-                Log($"Sent {counterName} value {value} to client.");
+                Log("Sent initial database state to client.");
+            }
+            catch (Exception ex)
+            {
+                Log($"Error sending initial database state: {ex.Message}");
             }
         }
 
-        private async void BroadcastCounterValue(string counterName, int value)
+
+        private async void BroadcastChange(string changeMessage)
         {
-            string message = $"COUNTER:{counterName}:{value}";
-            byte[] data = Encoding.UTF8.GetBytes(message);
+            byte[] data = Encoding.UTF8.GetBytes(changeMessage);
 
             foreach (TcpClient client in _connectedClients)
             {
@@ -146,7 +125,7 @@ namespace GGOverlay.Networking
                     try
                     {
                         await client.GetStream().WriteAsync(data, 0, data.Length);
-                        Log($"Broadcasted {counterName} value {value} to all clients.");
+                        Log("Broadcasted change to all clients.");
                     }
                     catch (Exception ex)
                     {
@@ -156,28 +135,12 @@ namespace GGOverlay.Networking
             }
         }
 
-        // Method to update the UI with the new counter value
-        private void UpdateCounterUI(string counterName, int newValue)
+        // Broadcasts any change in the database to all connected clients
+        private void HandleDatabaseChange(string changeMessage)
         {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                var mainWindow = (MainWindow)Application.Current.MainWindow;
-                switch (counterName)
-                {
-                    case "Counter1":
-                        mainWindow.Counter1TextBox.Text = newValue.ToString();
-                        break;
-                    case "Counter2":
-                        mainWindow.Counter2TextBox.Text = newValue.ToString();
-                        break;
-                    case "Counter3":
-                        mainWindow.Counter3TextBox.Text = newValue.ToString();
-                        break;
-                }
-            });
+            BroadcastChange(changeMessage);
         }
 
-        // Method to log messages using the delegate
         private void Log(string message)
         {
             OnLogMessage?.Invoke(message);

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
+using Newtonsoft.Json;
 
 namespace GGOverlay.Database
 {
@@ -8,99 +9,103 @@ namespace GGOverlay.Database
     {
         private readonly string _connectionString;
 
+        // Event to notify changes in a generic format
+        public event Action<string> OnDatabaseChanged;  // Serialized change message
+
         public DatabaseManager(string databasePath)
         {
             _connectionString = $"Data Source={databasePath};Version=3;";
-            InitializeDatabase();
         }
 
-        private void InitializeDatabase()
+        // Generic method to execute non-query SQL commands (INSERT, UPDATE, DELETE)
+        public void ExecuteNonQuery(string query, Dictionary<string, object> parameters)
         {
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                // Create the counters table if it does not exist
-                string createTableQuery = @"
-                    CREATE TABLE IF NOT EXISTS Counters (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Name TEXT NOT NULL UNIQUE,
-                        Value INTEGER NOT NULL
-                    );";
-                using (var command = new SQLiteCommand(createTableQuery, connection))
+                using (var command = new SQLiteCommand(query, connection))
                 {
-                    command.ExecuteNonQuery();
-                }
-
-                // Initialize the three counters if they don't exist
-                InitializeCounter("Counter1");
-                InitializeCounter("Counter2");
-                InitializeCounter("Counter3");
-            }
-        }
-
-        private void InitializeCounter(string counterName)
-        {
-            using (var connection = new SQLiteConnection(_connectionString))
-            {
-                connection.Open();
-                string insertQuery = "INSERT OR IGNORE INTO Counters (Name, Value) VALUES (@name, 0);";
-                using (var command = new SQLiteCommand(insertQuery, connection))
-                {
-                    command.Parameters.AddWithValue("@name", counterName);
-                    command.ExecuteNonQuery();
-                }
-            }
-        }
-
-        public int GetCounterValue(string counterName)
-        {
-            using (var connection = new SQLiteConnection(_connectionString))
-            {
-                connection.Open();
-                string selectQuery = "SELECT Value FROM Counters WHERE Name = @name;";
-                using (var command = new SQLiteCommand(selectQuery, connection))
-                {
-                    command.Parameters.AddWithValue("@name", counterName);
-                    var result = command.ExecuteScalar();
-                    return result != null ? Convert.ToInt32(result) : 0;
-                }
-            }
-        }
-
-        public void UpdateCounterValue(string counterName, int newValue)
-        {
-            using (var connection = new SQLiteConnection(_connectionString))
-            {
-                connection.Open();
-                string updateQuery = "UPDATE Counters SET Value = @value WHERE Name = @name;";
-                using (var command = new SQLiteCommand(updateQuery, connection))
-                {
-                    command.Parameters.AddWithValue("@value", newValue);
-                    command.Parameters.AddWithValue("@name", counterName);
-                    command.ExecuteNonQuery();
-                }
-            }
-        }
-
-        public Dictionary<string, int> GetAllCounterValues()
-        {
-            var counters = new Dictionary<string, int>();
-            using (var connection = new SQLiteConnection(_connectionString))
-            {
-                connection.Open();
-                string selectQuery = "SELECT Name, Value FROM Counters;";
-                using (var command = new SQLiteCommand(selectQuery, connection))
-                using (var reader = command.ExecuteReader())
-                {
-                    while (reader.Read())
+                    foreach (var param in parameters)
                     {
-                        string name = reader.GetString(0);
-                        int value = reader.GetInt32(1);
-                        counters[name] = value;
+                        command.Parameters.AddWithValue(param.Key, param.Value);
                     }
+                    command.ExecuteNonQuery();
                 }
             }
-            return counters;
+
+            // Broadcast changes to clients or host
+            BroadcastChange(query, parameters);
+        }
+
+        // Method to serialize and broadcast changes to connected clients or the host
+        private void BroadcastChange(string query, Dictionary<string, object> parameters)
+        {
+            var changeMessage = new
+            {
+                Query = query,
+                Parameters = parameters
+            };
+
+            string serializedChange = JsonConvert.SerializeObject(changeMessage);
+            OnDatabaseChanged?.Invoke(serializedChange); // Notify about the change
+        }
+
+        // Retrieves all data from the entire database, used for syncing initial states
+        public Dictionary<string, List<Dictionary<string, object>>> GetAllData()
+        {
+            var allData = new Dictionary<string, List<Dictionary<string, object>>>();
+
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                // Retrieve all table names
+                var tableNames = GetAllTableNames(connection);
+
+                // Iterate through each table and fetch its data
+                foreach (var tableName in tableNames)
+                {
+                    var tableData = new List<Dictionary<string, object>>();
+                    string selectQuery = $"SELECT * FROM {tableName};";
+
+                    using (var command = new SQLiteCommand(selectQuery, connection))
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var row = new Dictionary<string, object>();
+                            for (int i = 0; i < reader.FieldCount; i++)
+                            {
+                                row[reader.GetName(i)] = reader.GetValue(i);
+                            }
+                            tableData.Add(row);
+                        }
+                    }
+
+                    // Add the table data to the main dictionary
+                    allData[tableName] = tableData;
+                }
+            }
+
+            return allData;
+        }
+
+        // Helper method to get all table names from the database
+        private List<string> GetAllTableNames(SQLiteConnection connection)
+        {
+            var tableNames = new List<string>();
+
+            string query = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';";
+            using (var command = new SQLiteCommand(query, connection))
+            using (var reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    tableNames.Add(reader.GetString(0));
+                }
+            }
+
+            return tableNames;
         }
     }
 }
