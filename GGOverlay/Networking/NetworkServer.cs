@@ -15,6 +15,8 @@ namespace GGOverlay.Networking
         private const int Port = 25565;
         private DatabaseManager _databaseManager;
 
+        // Delegate to handle log messages
+        public event Action<string> OnLogMessage;
         public event Action<TcpClient> OnClientConnected;
 
         public NetworkServer(DatabaseManager databaseManager)
@@ -24,27 +26,51 @@ namespace GGOverlay.Networking
 
         public void StartServer()
         {
-            _server = new TcpListener(IPAddress.Any, Port);
-            _server.Start();
-            Task.Run(AcceptClientsAsync);
+            try
+            {
+                _server = new TcpListener(IPAddress.Any, Port);
+                _server.Start();
+                Log("Server started on port 25565.");
+                Task.Run(AcceptClientsAsync);
+            }
+            catch (Exception ex)
+            {
+                Log($"Error starting server: {ex.Message}");
+            }
         }
 
         private async Task AcceptClientsAsync()
         {
             while (true)
             {
-                var client = await _server.AcceptTcpClientAsync();
-                _connectedClients.Add(client);
-                OnClientConnected?.Invoke(client);
-                await SendAllCounterValuesAsync(client);
-                Task.Run(() => ReceiveDataAsync(client));
+                try
+                {
+                    var client = await _server.AcceptTcpClientAsync();
+                    Log($"Client connected from {client.Client.RemoteEndPoint}");
+                    _connectedClients.Add(client);
+                    OnClientConnected?.Invoke(client);
+                    await SendAllCounterValuesAsync(client);
+                    Task.Run(() => ReceiveDataAsync(client));
+                }
+                catch (Exception ex)
+                {
+                    Log($"Error accepting client: {ex.Message}");
+                }
             }
         }
 
         public void UpdateCounter(string counterName, int newValue)
         {
-            _databaseManager.UpdateCounterValue(counterName, newValue);
-            BroadcastCounterValue(counterName, newValue);
+            try
+            {
+                _databaseManager.UpdateCounterValue(counterName, newValue);
+                Log($"Updated {counterName} to {newValue}");
+                BroadcastCounterValue(counterName, newValue);
+            }
+            catch (Exception ex)
+            {
+                Log($"Error updating counter {counterName}: {ex.Message}");
+            }
         }
 
         private async Task ReceiveDataAsync(TcpClient client)
@@ -53,20 +79,32 @@ namespace GGOverlay.Networking
             byte[] buffer = new byte[1024];
             int bytesRead;
 
-            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
+            try
             {
-                string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                if (message.StartsWith("COUNTER:"))
+                while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
                 {
-                    var parts = message.Substring(8).Split(':');
-                    if (parts.Length == 2 && int.TryParse(parts[1], out int newValue))
+                    string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                    Log($"Received from client: {message}");
+                    if (message.StartsWith("COUNTER:"))
                     {
-                        UpdateCounter(parts[0], newValue);
+                        var parts = message.Substring(8).Split(':');
+                        if (parts.Length == 2 && int.TryParse(parts[1], out int newValue))
+                        {
+                            UpdateCounter(parts[0], newValue);
+                        }
                     }
                 }
             }
-            _connectedClients.Remove(client);
-            client.Close();
+            catch (Exception ex)
+            {
+                Log($"Error receiving data from client: {ex.Message}");
+            }
+            finally
+            {
+                _connectedClients.Remove(client);
+                client.Close();
+                Log("Client disconnected.");
+            }
         }
 
         private async Task SendAllCounterValuesAsync(TcpClient client)
@@ -85,6 +123,7 @@ namespace GGOverlay.Networking
                 string message = $"COUNTER:{counterName}:{value}";
                 byte[] data = Encoding.UTF8.GetBytes(message);
                 await client.GetStream().WriteAsync(data, 0, data.Length);
+                Log($"Sent {counterName} value {value} to client.");
             }
         }
 
@@ -97,9 +136,23 @@ namespace GGOverlay.Networking
             {
                 if (client.Connected)
                 {
-                    await client.GetStream().WriteAsync(data, 0, data.Length);
+                    try
+                    {
+                        await client.GetStream().WriteAsync(data, 0, data.Length);
+                        Log($"Broadcasted {counterName} value {value} to all clients.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"Error sending to client: {ex.Message}");
+                    }
                 }
             }
+        }
+
+        // Method to log messages using the delegate
+        private void Log(string message)
+        {
+            OnLogMessage?.Invoke(message);
         }
     }
 }

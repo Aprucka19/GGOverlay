@@ -18,10 +18,12 @@ namespace GGOverlay.Networking
             {
                 if (task.IsCompletedSuccessfully)
                 {
+                    Log("Successfully connected to the server.");
                     Task.Run(() => ReceiveDataAsync());
                 }
                 else
                 {
+                    Log($"Error connecting to server: {task.Exception?.Message}");
                     OnDataReceived?.Invoke("Error connecting to server.");
                 }
             });
@@ -33,12 +35,30 @@ namespace GGOverlay.Networking
             byte[] buffer = new byte[1024];
             int bytesRead;
 
-            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
+            try
             {
-                string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                OnDataReceived?.Invoke(message);
+                while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
+                {
+                    string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                    Log($"Received from server: {message}");
+                    OnDataReceived?.Invoke(message);
+                }
             }
-            _client.Close();
+            catch (Exception ex)
+            {
+                Log($"Error receiving data from server: {ex.Message}");
+            }
+            finally
+            {
+                _client.Close();
+                Log("Disconnected from server.");
+            }
         }
+
+        private void Log(string message)
+        {
+            OnDataReceived?.Invoke(message);
+        }
+
     }
 }
