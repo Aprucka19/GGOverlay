@@ -14,11 +14,12 @@ namespace GGOverlay
         public MainWindow()
         {
             InitializeComponent();
-            _databaseManager = new DatabaseManager("shared_data.db"); // Initialize the SQLite database
+            _databaseManager = new DatabaseManager("shared_data.db");
             _networkServer = new NetworkServer(_databaseManager);
             _networkClient = new NetworkClient();
 
             _networkServer.OnClientConnected += ClientConnected;
+            _networkServer.OnLogMessage += Log; // Subscribe to log messages from the server
             _networkClient.OnDataReceived += DataReceived;
 
             LoadCounterValues();
@@ -89,9 +90,24 @@ namespace GGOverlay
 
         private void Log(string message)
         {
-            LogTextBox.AppendText($"{message}\n");
-            LogTextBox.ScrollToEnd();
+            // Use the Dispatcher to ensure the UI updates happen on the UI thread
+            if (LogTextBox.Dispatcher.CheckAccess())
+            {
+                // If already on the UI thread, update directly
+                LogTextBox.AppendText($"{message}\n");
+                LogTextBox.ScrollToEnd();
+            }
+            else
+            {
+                // If not on the UI thread, invoke the update on the UI thread
+                LogTextBox.Dispatcher.Invoke(() =>
+                {
+                    LogTextBox.AppendText($"{message}\n");
+                    LogTextBox.ScrollToEnd();
+                });
+            }
         }
+
 
         private void ClientConnected(TcpClient client)
         {
@@ -101,7 +117,6 @@ namespace GGOverlay
         private void DataReceived(string message)
         {
             Log($"Received: {message}");
-            // Handle message parsing to update counters based on received data
         }
     }
 }
