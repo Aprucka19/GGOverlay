@@ -1,0 +1,14 @@
+﻿<Window x:Class="GGOverlay.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Counter App" Height="200" Width="300">
+    <Grid>
+        <StackPanel>
+            <TextBlock Text="Counter:" Margin="10"/>
+            <TextBlock Text="{Binding CounterValue}" FontSize="20" HorizontalAlignment="Center"/>
+            <Button Content="Increase Counter" Command="{Binding IncreaseCommand}" Margin="10"/>
+            <Button Content="Host" Command="{Binding HostCommand}" Margin="10"/>
+            <Button Content="Join" Command="{Binding JoinCommand}" Margin="10"/>
+        </StackPanel>
+    </Grid>
+</Window>
