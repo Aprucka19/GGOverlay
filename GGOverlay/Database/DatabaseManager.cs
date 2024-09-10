@@ -33,6 +33,7 @@ namespace GGOverlay.Database
                         command.Parameters.AddWithValue(param.Key, param.Value);
                     }
                     command.ExecuteNonQuery();
+                    OnDatabaseChanged?.Invoke(command.ToString());
                 }
             }
 
@@ -59,7 +60,7 @@ namespace GGOverlay.Database
             };
 
             string serializedChange = JsonConvert.SerializeObject(changeMessage);
-            OnDatabaseChanged?.Invoke(serializedChange);
+
         }
 
         // Retrieves all data from the entire database, used for syncing initial states
