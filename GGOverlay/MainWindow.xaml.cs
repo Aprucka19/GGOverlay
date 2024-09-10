@@ -45,35 +45,48 @@ namespace GGOverlay
             }
         }
 
-        private void Counter1PlusButton_Click(object sender, RoutedEventArgs e)
+        private async void Counter1PlusButton_Click(object sender, RoutedEventArgs e)
         {
-            UpdateCounter("Counter1", _databaseManager.GetCounterValue("Counter1") + 1);
+            int newValue = _databaseManager.GetCounterValue("Counter1") + 1;
+            UpdateCounter("Counter1", newValue);
+            await _networkClient.SendCounterUpdateAsync("Counter1", newValue);
         }
 
-        private void Counter1MinusButton_Click(object sender, RoutedEventArgs e)
+        private async void Counter1MinusButton_Click(object sender, RoutedEventArgs e)
         {
-            UpdateCounter("Counter1", _databaseManager.GetCounterValue("Counter1") - 1);
+            int newValue = _databaseManager.GetCounterValue("Counter1") - 1;
+            UpdateCounter("Counter1", newValue);
+            await _networkClient.SendCounterUpdateAsync("Counter1", newValue);
         }
 
-        private void Counter2PlusButton_Click(object sender, RoutedEventArgs e)
+        private async void Counter2PlusButton_Click(object sender, RoutedEventArgs e)
         {
-            UpdateCounter("Counter2", _databaseManager.GetCounterValue("Counter2") + 1);
+            int newValue = _databaseManager.GetCounterValue("Counter2") + 1;
+            UpdateCounter("Counter2", newValue);
+            await _networkClient.SendCounterUpdateAsync("Counter2", newValue);
         }
 
-        private void Counter2MinusButton_Click(object sender, RoutedEventArgs e)
+        private async void Counter2MinusButton_Click(object sender, RoutedEventArgs e)
         {
-            UpdateCounter("Counter2", _databaseManager.GetCounterValue("Counter2") - 1);
+            int newValue = _databaseManager.GetCounterValue("Counter2") - 1;
+            UpdateCounter("Counter2", newValue);
+            await _networkClient.SendCounterUpdateAsync("Counter2", newValue);
         }
 
-        private void Counter3PlusButton_Click(object sender, RoutedEventArgs e)
+        private async void Counter3PlusButton_Click(object sender, RoutedEventArgs e)
         {
-            UpdateCounter("Counter3", _databaseManager.GetCounterValue("Counter3") + 1);
+            int newValue = _databaseManager.GetCounterValue("Counter3") + 1;
+            UpdateCounter("Counter3", newValue);
+            await _networkClient.SendCounterUpdateAsync("Counter3", newValue);
         }
 
-        private void Counter3MinusButton_Click(object sender, RoutedEventArgs e)
+        private async void Counter3MinusButton_Click(object sender, RoutedEventArgs e)
         {
-            UpdateCounter("Counter3", _databaseManager.GetCounterValue("Counter3") - 1);
+            int newValue = _databaseManager.GetCounterValue("Counter3") - 1;
+            UpdateCounter("Counter3", newValue);
+            await _networkClient.SendCounterUpdateAsync("Counter3", newValue);
         }
+
 
         private void UpdateCounter(string counterName, int newValue)
         {

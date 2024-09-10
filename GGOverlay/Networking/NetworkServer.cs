@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;  // Add this namespace to access Application and Dispatcher
 using GGOverlay.Database;
 
 namespace GGOverlay.Networking
@@ -65,6 +66,7 @@ namespace GGOverlay.Networking
             {
                 _databaseManager.UpdateCounterValue(counterName, newValue);
                 Log($"Updated {counterName} to {newValue}");
+                UpdateCounterUI(counterName, newValue);  // Update the server UI
                 BroadcastCounterValue(counterName, newValue);
             }
             catch (Exception ex)
@@ -85,12 +87,17 @@ namespace GGOverlay.Networking
                 {
                     string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                     Log($"Received from client: {message}");
+
                     if (message.StartsWith("COUNTER:"))
                     {
                         var parts = message.Substring(8).Split(':');
                         if (parts.Length == 2 && int.TryParse(parts[1], out int newValue))
                         {
-                            UpdateCounter(parts[0], newValue);
+                            string counterName = parts[0];
+                            UpdateCounter(counterName, newValue);
+
+                            // Broadcast the received update to all clients
+                            BroadcastCounterValue(counterName, newValue);
                         }
                     }
                 }
@@ -147,6 +154,27 @@ namespace GGOverlay.Networking
                     }
                 }
             }
+        }
+
+        // Method to update the UI with the new counter value
+        private void UpdateCounterUI(string counterName, int newValue)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var mainWindow = (MainWindow)Application.Current.MainWindow;
+                switch (counterName)
+                {
+                    case "Counter1":
+                        mainWindow.Counter1TextBox.Text = newValue.ToString();
+                        break;
+                    case "Counter2":
+                        mainWindow.Counter2TextBox.Text = newValue.ToString();
+                        break;
+                    case "Counter3":
+                        mainWindow.Counter3TextBox.Text = newValue.ToString();
+                        break;
+                }
+            });
         }
 
         // Method to log messages using the delegate

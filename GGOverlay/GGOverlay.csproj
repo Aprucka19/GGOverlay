@@ -9,8 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SQLite" Version="3.13.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.118" />
   </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="start &quot;&quot; &quot;$(TargetPath)&quot;&#xD;&#xA;start &quot;&quot; &quot;$(TargetPath)&quot;" />
+  </Target>
 
 </Project>
