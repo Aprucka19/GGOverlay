@@ -119,5 +119,37 @@ namespace GGOverlay.Database
 
             return tableNames;
         }
+
+        public void ClearDatabase()
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                var tableNames = GetAllTableNames(connection);
+
+                // Clear each table in the database
+                foreach (var tableName in tableNames)
+                {
+                    using (var command = new SQLiteCommand($"DELETE FROM {tableName};", connection))
+                    {
+                        command.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
+        public void CreateTableIfNotExists(string tableName)
+        {
+            // Example for a generic table creation, adjust based on expected table structure
+            string createTableQuery = $@"
+        CREATE TABLE IF NOT EXISTS {tableName} (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            Name TEXT,
+            Value INTEGER
+        );";
+            ExecuteNonQuery(createTableQuery, new Dictionary<string, object>(), suppressBroadcast: true);
+        }
+
+
     }
 }

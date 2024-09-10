@@ -23,11 +23,7 @@ namespace GGOverlay
             _networkServer.OnLogMessage += Log;
             _networkClient.OnDataReceived += DataReceived;
 
-            // Ensure counters exist in the database, creating them if necessary
-            _counters.InitializeCounters(); // Ensure this method is public in Counters.cs
 
-            // Load initial state from the database
-            LoadCounterValues();
 
             // Subscribe to database change events to update the UI
             _databaseManager.OnDatabaseChanged += UpdateUIFromDatabaseChange;
@@ -35,6 +31,12 @@ namespace GGOverlay
 
         private void HostButton_Click(object sender, RoutedEventArgs e)
         {
+            // Ensure counters exist in the database, creating them if necessary
+            _counters.InitializeCounters(); // Ensure this method is public in Counters.cs
+
+            // Load initial state from the database
+            LoadCounterValues();
+
             _networkServer.StartServer();
             Log("Server started... Waiting for clients.");
         }

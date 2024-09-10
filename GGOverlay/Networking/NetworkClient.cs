@@ -117,11 +117,14 @@ namespace GGOverlay.Networking
         // Handle the full state update from the server
         private void HandleFullStateUpdate(Dictionary<string, List<Dictionary<string, object>>> fullState)
         {
-            // Clear current state and replace with the new state
+            // Clear the entire database before repopulating
+            _databaseManager.ClearDatabase();
+
+            // Populate the database with the new state from the server
             foreach (var tableName in fullState.Keys)
             {
-                // Clear the table
-                _databaseManager.ExecuteNonQuery($"DELETE FROM {tableName};", new Dictionary<string, object>(), suppressBroadcast: true);
+                // Ensure the table exists in the local database (optional if tables are predefined)
+                _databaseManager.CreateTableIfNotExists(tableName);
 
                 // Insert each row into the table
                 foreach (var row in fullState[tableName])
@@ -134,6 +137,7 @@ namespace GGOverlay.Networking
 
             Log("Full database state updated successfully.");
         }
+
 
 
         // Utility method to build an insert query from a row of data
