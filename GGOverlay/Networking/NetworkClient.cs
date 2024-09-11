@@ -1,4 +1,5 @@
 ﻿// Networking/NetworkClient.cs
+using GGOverlay.Utilities; // Add this using statement
 using System;
 using System.Net.Sockets;
 using System.Text;
@@ -12,7 +13,6 @@ namespace GGOverlay.Networking
         private const int Port = 5000;
 
         public event Action<string> OnMessageReceived;
-        public event Action<string> OnLog;
 
         public async Task ConnectAsync(string ipAddress)
         {
@@ -20,12 +20,12 @@ namespace GGOverlay.Networking
             {
                 _client = new TcpClient();
                 await _client.ConnectAsync(ipAddress, Port);
-                OnLog?.Invoke("Connected to the server.");
+                Logger.Log("Connected to the server.");
                 await Task.Run(() => ReceiveDataAsync());
             }
             catch (Exception ex)
             {
-                OnLog?.Invoke($"Error connecting to server: {ex.Message}");
+                Logger.Log($"Error connecting to server: {ex.Message}");
             }
         }
 
@@ -41,7 +41,7 @@ namespace GGOverlay.Networking
                 OnMessageReceived?.Invoke(message);
             }
 
-            OnLog?.Invoke("Disconnected from server.");
+            Logger.Log("Disconnected from server.");
         }
 
         public async Task SendMessageAsync(string message)
