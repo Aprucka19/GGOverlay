@@ -52,7 +52,7 @@ namespace GGOverlay.Networking
         private async Task ReceiveDataAsync(TcpClient client)
         {
             NetworkStream stream = client.GetStream();
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[1000024];
             int bytesRead;
 
             while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)

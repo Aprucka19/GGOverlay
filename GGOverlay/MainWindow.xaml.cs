@@ -36,7 +36,6 @@ namespace GGOverlay
             }
         }
 
-        // Opens dialog to create a profile
         private Profile CreateProfile()
         {
             OpenFileDialog openFileDialog = new OpenFileDialog
@@ -46,15 +45,51 @@ namespace GGOverlay
 
             if (openFileDialog.ShowDialog() == true)
             {
-                BitmapImage image = new BitmapImage(new Uri(openFileDialog.FileName));
+                BitmapImage originalImage = new BitmapImage(new Uri(openFileDialog.FileName));
+                BitmapImage resizedImage = ResizeImage(originalImage, 128, 128); // Resize the image to 128x128 pixels
                 string name = PromptForName();
                 decimal drinkScale = PromptForDrinkScale();
-                string imageBase64 = ConvertBitmapImageToBase64(image); // Convert image to base64 for profile
+                string imageBase64 = ConvertBitmapImageToBase64(resizedImage); // Convert resized image to base64 for profile
 
                 return new Profile(name, drinkScale, imageBase64);
             }
             return null;
         }
+
+        // Method to resize a BitmapImage to the specified width and height
+        private BitmapImage ResizeImage(BitmapImage originalImage, int width, int height)
+        {
+            // Create a DrawingVisual to render the image
+            var drawingVisual = new System.Windows.Media.DrawingVisual();
+            using (var drawingContext = drawingVisual.RenderOpen())
+            {
+                drawingContext.DrawImage(originalImage, new System.Windows.Rect(0, 0, width, height));
+            }
+
+            // Render the DrawingVisual into a RenderTargetBitmap
+            var resizedBitmap = new RenderTargetBitmap(width, height, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+            resizedBitmap.Render(drawingVisual);
+
+            // Convert RenderTargetBitmap back to BitmapImage
+            var bitmapImage = new BitmapImage();
+            using (MemoryStream stream = new MemoryStream())
+            {
+                BitmapEncoder encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(resizedBitmap));
+                encoder.Save(stream);
+                stream.Position = 0;
+
+                bitmapImage.BeginInit();
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.StreamSource = stream;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
+            }
+
+            return bitmapImage;
+        }
+
+
 
         // Host a server and create GameData
         private async void HostButton_Click(object sender, RoutedEventArgs e)
