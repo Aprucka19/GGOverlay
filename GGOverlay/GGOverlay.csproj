@@ -8,4 +8,12 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="start &quot;&quot; &quot;$(TargetPath)&quot;&#xD;&#xA;start &quot;&quot; &quot;$(TargetPath)&quot;" />
+  </Target>
+
 </Project>

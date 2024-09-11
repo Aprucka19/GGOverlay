@@ -1,186 +1,107 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
+﻿// MainWindow.xaml.cs
+using GGOverlay.Data;
+using GGOverlay.Networking;
+using System;
 using System.Threading.Tasks;
 using System.Windows;
-using System;
-using System.Globalization;
-using System.Windows;
-using System.Windows.Data;
 
 namespace GGOverlay
 {
     public partial class MainWindow : Window
     {
-        private TcpListener _server;
-        private TcpClient _client;
-        private List<TcpClient> _connectedClients = new List<TcpClient>(); // Track connected clients
-        private const int Port = 5000;
-        private int _counterValue = 0;
+        private NetworkServer _server;
+        private NetworkClient _client;
+        private Counter _counter;
 
         public MainWindow()
         {
             InitializeComponent();
-            CounterTextBox.Text = _counterValue.ToString();
+            _counter = new Counter();
+            _counter.OnValueChanged += BroadcastCounterValueAsync; // Attach event handler to counter changes
+            UpdateCounterDisplay(_counter.Value); // Initialize the UI with the initial counter value
         }
 
-        // Method to start the server
         private async void HostButton_Click(object sender, RoutedEventArgs e)
         {
-            try
+            if (_server == null) // Only create the server when the button is clicked
             {
-                _server = new TcpListener(IPAddress.Any, Port);
-                _server.Start();
-                Log("Server started... Waiting for clients.");
-                await Task.Run(() => AcceptClientsAsync());
+                _server = new NetworkServer();
+                _server.OnLog += Log;
+                _server.OnMessageReceived += HandleMessageReceived;
+                await _server.StartAsync();
             }
-            catch (Exception ex)
+            else
             {
-                Log($"Error starting server: {ex.Message}");
+                Log("Server is already running.");
             }
         }
 
-        // Method to connect to the server as a client
         private async void JoinButton_Click(object sender, RoutedEventArgs e)
         {
-            string ipAddress = IpAddressTextBox.Text.Trim();
-            if (string.IsNullOrEmpty(ipAddress))
+            if (_client == null) // Only create the client when the button is clicked
             {
-                Log("Please enter a valid IP address.");
-                return;
-            }
-
-            try
-            {
-                _client = new TcpClient();
-                await _client.ConnectAsync(ipAddress, Port);
-                Log("Connected to the server.");
-                await Task.Run(() => ReceiveDataAsync(_client));
-            }
-            catch (Exception ex)
-            {
-                Log($"Error connecting to server: {ex.Message}");
-            }
-        }
-
-        // Accept incoming clients
-        private async Task AcceptClientsAsync()
-        {
-            while (true)
-            {
-                var client = await _server.AcceptTcpClientAsync();
-                Log("Client connected.");
-                _connectedClients.Add(client); // Add client to list
-                _ = Task.Run(() => ReceiveDataAsync(client));
-
-                // Send initial counter value to new client
-                await SendCounterValueAsync(client, _counterValue);
-            }
-        }
-
-        // Receive data from a connected client or server
-        private async Task ReceiveDataAsync(TcpClient client)
-        {
-            NetworkStream stream = client.GetStream();
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-
-            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
-            {
-                string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                Log($"Received: {message}");
-
-                if (message.StartsWith("COUNTER:"))
+                string ipAddress = IpAddressTextBox.Text.Trim();
+                if (!string.IsNullOrEmpty(ipAddress))
                 {
-                    if (int.TryParse(message.Substring(8), out int newValue))
-                    {
-                        UpdateCounter(newValue, false); // false indicates not to send back the value to avoid a loop
-                    }
+                    _client = new NetworkClient();
+                    _client.OnLog += Log;
+                    _client.OnMessageReceived += HandleMessageReceived;
+                    await _client.ConnectAsync(ipAddress);
+                }
+                else
+                {
+                    Log("Please enter a valid IP address.");
                 }
             }
-
-            Log("Client disconnected.");
-            _connectedClients.Remove(client); // Remove client on disconnect
-            client.Close();
-        }
-
-        // Update the counter value and display it
-        private void UpdateCounter(int newValue, bool broadcast)
-        {
-            _counterValue = newValue;
-            Application.Current.Dispatcher.Invoke(() =>
+            else
             {
-                CounterTextBox.Text = _counterValue.ToString();
-            });
-
-            // Broadcast the updated counter value to all connected clients if needed
-            if (broadcast)
-            {
-                BroadcastCounterValue(_counterValue);
+                Log("Already connected as a client.");
             }
         }
 
-        // Method for the Plus button click
         private void PlusButton_Click(object sender, RoutedEventArgs e)
         {
-            UpdateCounter(_counterValue + 1, true); // Increment and broadcast
+            _counter.Increment();
         }
 
-        // Method for the Minus button click
         private void MinusButton_Click(object sender, RoutedEventArgs e)
         {
-            UpdateCounter(_counterValue - 1, true); // Decrement and broadcast
+            _counter.Decrement();
         }
 
-        // Send the counter value to a specific client
-        private async Task SendCounterValueAsync(TcpClient client, int value)
+        private async Task BroadcastCounterValueAsync(int newValue)
         {
-            if (client != null && client.Connected)
+            string message = $"COUNTER:{newValue}";
+
+            if (_server != null) // Broadcast to all clients if hosting
             {
-                string message = $"COUNTER:{value}";
-                byte[] data = Encoding.UTF8.GetBytes(message);
-                await client.GetStream().WriteAsync(data, 0, data.Length);
+                await _server.BroadcastMessageAsync(message);
+            }
+            else if (_client != null) // Send the updated value to the server if connected as a client
+            {
+                await _client.SendMessageAsync(message);
             }
         }
 
-        // Broadcast the counter value to all connected clients
-        private async void BroadcastCounterValue(int value)
+        private void HandleMessageReceived(string message)
         {
-            string message = $"COUNTER:{value}";
-            byte[] data = Encoding.UTF8.GetBytes(message);
-
-            foreach (TcpClient client in _connectedClients)
+            Log($"Received: {message}");
+            if (message.StartsWith("COUNTER:") && int.TryParse(message.Substring(8), out int newValue))
             {
-                if (client.Connected)
-                {
-                    try
-                    {
-                        await client.GetStream().WriteAsync(data, 0, data.Length);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log($"Error sending to client: {ex.Message}");
-                    }
-                }
-            }
-
-            // If this client is also connected as a client, send the update to the server
-            if (_client != null && _client.Connected)
-            {
-                try
-                {
-                    await _client.GetStream().WriteAsync(data, 0, data.Length);
-                }
-                catch (Exception ex)
-                {
-                    Log($"Error sending to server: {ex.Message}");
-                }
+                _counter.SetValue(newValue); // Update the counter value
+                UpdateCounterDisplay(newValue); // Update the UI with the new value
             }
         }
 
-        // Log messages to the TextBox
+        // Update the counter display on the UI thread
+        private void UpdateCounterDisplay(int value)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                CounterTextBox.Text = value.ToString();
+            });
+        }
+
         private void Log(string message)
         {
             Application.Current.Dispatcher.Invoke(() =>
@@ -188,28 +109,6 @@ namespace GGOverlay
                 LogTextBox.AppendText($"{message}\n");
                 LogTextBox.ScrollToEnd();
             });
-        }
-    }
-
-
-
-
-    public class EmptyStringToVisibilityConverter : IValueConverter
-    {
-        // Converts empty or null strings to Visibility.Collapsed, otherwise Visible
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            if (value is string str && string.IsNullOrWhiteSpace(str))
-            {
-                return Visibility.Visible; // Show placeholder when the string is empty
-            }
-            return Visibility.Collapsed; // Hide placeholder when there is text
-        }
-
-        // Not needed but must be implemented
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
         }
     }
 }

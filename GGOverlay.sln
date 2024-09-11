@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35222.181
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GGOverlay", "GGOverlay\GGOverlay.csproj", "{FCB09F1B-4764-4432-9C9D-433F9ED29371}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GGOverlay", "GGOverlay\GGOverlay.csproj", "{FCB09F1B-4764-4432-9C9D-433F9ED29371}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

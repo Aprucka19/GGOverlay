@@ -5,7 +5,6 @@
         Title="Host/Join Application" Height="400" Width="500">
     <Window.Resources>
         <!-- Register the converter -->
-        <local:EmptyStringToVisibilityConverter x:Key="EmptyStringToVisibilityConverter"/>
     </Window.Resources>
 
     <Grid Margin="10">
@@ -18,10 +17,6 @@
             <TextBlock Text="Server IP Address:" Margin="0,10,0,0" FontWeight="Bold"/>
             <Grid Margin="0,5,0,0">
                 <TextBox x:Name="IpAddressTextBox" Width="200" Height="30"/>
-                <TextBlock Text="Enter IP Address" IsHitTestVisible="False" 
-                           Foreground="Gray" VerticalAlignment="Center" 
-                           Margin="5,0,0,0" 
-                           Visibility="{Binding Text, ElementName=IpAddressTextBox, Converter={StaticResource EmptyStringToVisibilityConverter}}"/>
             </Grid>
         </StackPanel>
 
