@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/GGOverlay/Database/Counters.cs
+/GGOverlay/Database/DatabaseManager.cs
+/GGOverlay/Utilities/EmptyStringToVisibilityConverter.cs
