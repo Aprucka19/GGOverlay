@@ -1,20 +1,26 @@
 ﻿<Window x:Class="GGOverlay.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Connection Window" Height="400" Width="600">
+        Title="Connection Window" Height="200" Width="600">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <!-- Connection Buttons -->
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <!-- IP Address Input -->
             <RowDefinition Height="Auto" />
+            <!-- Game Rules Display -->
+            <RowDefinition Height="200" />
+            <!-- Fixed size for Log Output -->
         </Grid.RowDefinitions>
 
         <!-- Connection Buttons -->
         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
             <Button Name="HostButton" Content="Host" Width="80" Margin="0,0,10,0" Click="HostButton_Click" />
             <Button Name="JoinButton" Content="Join" Width="80" Margin="0,0,10,0" Click="JoinButton_Click" />
-            <Button Name="DisconnectButton" Content="Disconnect" Width="80" IsEnabled="False" Click="DisconnectButton_Click" />
+            <Button Name="DisconnectButton" Content="Disconnect" Margin="0,0,10,0" Width="80" IsEnabled="False" Click="DisconnectButton_Click" />
+            <Button Name="ToggleLogs" Content="Show Logs" Margin="0,0,10,0" Width="80" Click="ToggleLogs_Click" />
+            <Button Name="SetRules" Content="Set Rules" Width="80" Visibility="Hidden" Click="SetRules_Click" />
         </StackPanel>
 
         <!-- IP Address Input -->
@@ -22,8 +28,16 @@
             <TextBox Name="IpTextBox" Width="150" Text="127.0.0.1" Margin="0,0,10,0" />
         </StackPanel>
 
+        <!-- Game Rules Display -->
+        <TextBlock Name="GameRulesTextBlock" 
+                   Text="No Game Rules Loaded" 
+                   Grid.Row="2" 
+                   Margin="0,0,0,10"
+                   TextWrapping="Wrap"
+                   VerticalAlignment="Top" />
+
         <!-- Log Output -->
-        <ScrollViewer Name="LogScrollViewer" Grid.Row="2" Margin="0,0,0,10" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Visibility="Collapsed" Name="LogScrollViewer" Grid.Row="3" Margin="0,0,0,10" VerticalScrollBarVisibility="Auto" Height="200">
             <TextBox Name="LogTextBox" 
                      TextWrapping="Wrap" 
                      VerticalAlignment="Top" 
@@ -34,11 +48,5 @@
                      VerticalScrollBarVisibility="Hidden"
                      AcceptsReturn="True" />
         </ScrollViewer>
-
-        <!-- Message Input and Send Button -->
-        <StackPanel Orientation="Horizontal" Grid.Row="3">
-            <TextBox Name="MessageTextBox" Width="400" Margin="0,0,10,0" KeyDown="MessageTextBox_KeyDown" />
-            <Button Name="SendButton" Content="Send" Width="80" IsEnabled="False" Click="SendButton_Click" />
-        </StackPanel>
     </Grid>
 </Window>

@@ -60,6 +60,38 @@ namespace GGOverlay.Game
                 OnLog?.Invoke($"Error loading rules from file: {ex.Message}");
             }
         }
+        // Method to serialize the rules into a string
+        public string Send()
+        {
+            try
+            {
+                // Serialize the rules list to a JSON string
+                string serializedRules = JsonConvert.SerializeObject(Rules, Formatting.Indented);
+                OnLog?.Invoke("Rules serialized successfully.");
+                return serializedRules;
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"Error serializing rules: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        // Method to deserialize the string into rules and set them
+        public void Receive(string serializedRules)
+        {
+            try
+            {
+                // Deserialize the string into a list of rules
+                Rules = JsonConvert.DeserializeObject<List<Rule>>(serializedRules) ?? new List<Rule>();
+                OnLog?.Invoke("Rules deserialized successfully.");
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"Error deserializing rules: {ex.Message}");
+            }
+        }
+
     }
 
     public class Rule

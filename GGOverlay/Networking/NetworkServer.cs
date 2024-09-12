@@ -19,6 +19,9 @@ namespace Networking
         public event Action<TcpClient> OnClientConnected;
         public event Action<string> OnLog;
 
+        // Define a message terminator
+        private const string MessageTerminator = "<END>";
+
         public async Task StartAsync(int port)
         {
             try
@@ -37,7 +40,7 @@ namespace Networking
                         break;
                     }
 
-                    OnClientConnected?.Invoke(client);
+                    
                     OnLog?.Invoke($"Client connected: {client.Client?.RemoteEndPoint}");
                     _ = HandleClientAsync(client, _cancellationTokenSource.Token);
                 }
@@ -60,23 +63,37 @@ namespace Networking
             _clients.TryAdd(client, writer);
             OnLog?.Invoke($"Handling client: {client.Client?.RemoteEndPoint}");
 
+            OnClientConnected?.Invoke(client);
+
+            StringBuilder messageBuffer = new StringBuilder();
+
             try
             {
                 while (!IsClientDisconnected(client) && !cancellationToken.IsCancellationRequested)
                 {
                     try
                     {
-                        string message = await reader.ReadLineAsync().ConfigureAwait(false);
-                        if (cancellationToken.IsCancellationRequested) break;
+                        // Read incoming data character by character
+                        char[] buffer = new char[1];
+                        int read;
+                        while ((read = await reader.ReadAsync(buffer, 0, 1).ConfigureAwait(false)) > 0)
+                        {
+                            // Append each character to the message buffer
+                            messageBuffer.Append(buffer[0]);
 
-                        if (message != null)
-                        {
-                            OnMessageReceived?.Invoke(message, client);
-                            OnLog?.Invoke($"Received message from {client.Client?.RemoteEndPoint}: {message}");
-                        }
-                        else
-                        {
-                            break;
+                            // Check if the terminator is in the buffer
+                            if (messageBuffer.ToString().EndsWith(MessageTerminator))
+                            {
+                                // Remove the terminator and get the full message
+                                string completeMessage = messageBuffer.ToString().Replace(MessageTerminator, string.Empty);
+
+                                // Trigger the OnMessageReceived event
+                                OnMessageReceived?.Invoke(completeMessage, client);
+                                OnLog?.Invoke($"Received message from {client.Client?.RemoteEndPoint}: {completeMessage}");
+
+                                // Clear the buffer for the next message
+                                messageBuffer.Clear();
+                            }
                         }
                     }
                     catch (IOException ioEx) when (cancellationToken.IsCancellationRequested)
@@ -125,7 +142,8 @@ namespace Networking
             {
                 try
                 {
-                    await writer.WriteLineAsync(message).ConfigureAwait(false);
+                    // Append the message terminator before sending
+                    await writer.WriteAsync(message + MessageTerminator).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -143,7 +161,8 @@ namespace Networking
                 {
                     try
                     {
-                        await kvp.Value.WriteLineAsync(message).ConfigureAwait(false);
+                        // Append the message terminator before sending
+                        await kvp.Value.WriteAsync(message + MessageTerminator).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -159,7 +178,8 @@ namespace Networking
             {
                 try
                 {
-                    await writer.WriteLineAsync(message).ConfigureAwait(false);
+                    // Append the message terminator before sending
+                    await writer.WriteAsync(message + MessageTerminator).ConfigureAwait(false);
                     OnLog?.Invoke($"Sent message to {client.Client?.RemoteEndPoint}: {message}");
                 }
                 catch (Exception ex)

@@ -1,17 +1,17 @@
 ﻿using System;
-using System.Net.Sockets;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
-using Networking;
+using GGOverlay.Game;
+using Microsoft.Win32;
 
 namespace GGOverlay
 {
     public partial class MainWindow : Window
     {
-        private NetworkServer _server;
-        private NetworkClient _client;
+        private GameMaster _gameMaster;
+        private GameClient _gameClient;
 
         public MainWindow()
         {
@@ -20,48 +20,76 @@ namespace GGOverlay
 
         private async void HostButton_Click(object sender, RoutedEventArgs e)
         {
-            _server = new NetworkServer();
-            _server.OnLog += LogMessage;
-            _server.OnMessageReceived += OnServerMessageReceived;
-            _server.OnClientConnected += OnClientConnected;
+            _gameMaster = new GameMaster();
+            _gameMaster.OnLog += LogMessage;
+            _gameMaster.UIUpdate += UpdateGameRulesDisplay;
 
             HostButton.IsEnabled = false;
             JoinButton.IsEnabled = false;
             DisconnectButton.IsEnabled = true;
-            SendButton.IsEnabled = true;
-            await _server.StartAsync(25565); // Arbitrary port, can be adjusted
+            SetRules.Visibility = Visibility.Visible;
+
+            try
+            {
+                await _gameMaster.HostGame(25565); // Arbitrary port, can be adjusted
+            }
+            catch (Exception ex)
+            {
+                LogMessage($"Error hosting game: {ex.Message}");
+                ResetUIState();
+            }
+        }
+
+
+        private async void SetRules_Click(object sender, RoutedEventArgs e)
+        {
+            // Open a file dialog to allow the user to select the rules file
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Title = "Select Game Rules File",
+                Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*"
+            };
+
+            // Show the file dialog and check if the user selected a file
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string filepath = openFileDialog.FileName;
+                try
+                {
+                    // Set the game rules from the selected file
+                    await _gameMaster.SetGameRules(filepath);
+                    LogMessage("Game rules set from file.");
+
+                    // Update the Game Rules display
+                    UpdateGameRulesDisplay();
+                }
+                catch (Exception ex)
+                {
+                    LogMessage($"Error setting game rules: {ex.Message}");
+                }
+            }
+            else
+            {
+                LogMessage("No file selected.");
+            }
         }
 
         private async void JoinButton_Click(object sender, RoutedEventArgs e)
         {
-            _client = new NetworkClient();
-            _client.OnLog += LogMessage;
-            _client.OnMessageReceived += OnClientMessageReceived;
-            _client.OnDisconnected += OnClientDisconnected; // Handle client disconnection
+            _gameClient = new GameClient();
+            _gameClient.OnLog += LogMessage;
+            _gameClient.OnDisconnectedGameClient += OnClientDisconnected;
+            _gameClient.UIUpdate += UpdateGameRulesDisplay;
 
             HostButton.IsEnabled = false;
             JoinButton.IsEnabled = false;
             DisconnectButton.IsEnabled = true;
-            SendButton.IsEnabled = true;
 
             string ipAddress = IpTextBox.Text;
 
-            try
+            bool success = await _gameClient.JoinGame(ipAddress, 25565);
+            if (!success)
             {
-                // Attempt to connect with a timeout of 5 seconds
-                await _client.ConnectAsync(ipAddress, 25565, 5);
-                LogMessage("Connected to server.");
-            }
-            catch (TimeoutException ex)
-            {
-                // Log the timeout error and reset the UI state
-                LogMessage($"Connection timed out: {ex.Message}");
-                ResetUIState();
-            }
-            catch (Exception ex)
-            {
-                // Log any other connection errors and reset the UI state
-                LogMessage($"Error connecting to server: {ex.Message}");
                 ResetUIState();
             }
         }
@@ -72,47 +100,20 @@ namespace GGOverlay
             HostButton.IsEnabled = true;
             JoinButton.IsEnabled = true;
             DisconnectButton.IsEnabled = false;
-            SendButton.IsEnabled = false;
         }
-
 
         private void DisconnectButton_Click(object sender, RoutedEventArgs e)
         {
             Disconnect();
 
-            HostButton.IsEnabled = true;
-            JoinButton.IsEnabled = true;
-            DisconnectButton.IsEnabled = false;
-            SendButton.IsEnabled = false;
+            ResetUIState();
         }
 
         private void Disconnect()
         {
-            if (_server != null)
-                _server.Stop();
-            else if (_client != null)
-                _client.Disconnect();
+            _gameMaster?.StopServer();
+            _gameClient?.Disconnect();
             LogMessage("Disconnected.");
-        }
-
-        private async void SendButton_Click(object sender, RoutedEventArgs e)
-        {
-            string message = MessageTextBox.Text;
-            MessageTextBox.Clear();
-
-            if (_client != null && _client.IsConnected)
-            {
-                await _client.SendMessageAsync(message);
-                LogMessage($"Sent message: {message}");
-            }
-            else if (_server != null)
-            {
-                await _server.BroadcastMessageAsync(message);
-                LogMessage($"Broadcasted message: {message}");
-            }
-
-            // Keep the focus on the MessageTextBox after sending
-            MessageTextBox.Focus();
         }
 
         private void LogMessage(string message)
@@ -120,47 +121,56 @@ namespace GGOverlay
             Application.Current.Dispatcher.Invoke(() =>
             {
                 LogTextBox.AppendText($"{message}\n");
-                LogScrollViewer.ScrollToEnd(); // Scroll to the bottom of the log automatically
+                LogScrollViewer.ScrollToEnd();
             });
         }
 
-        private void OnClientMessageReceived(string message)
-        {
-            LogMessage($"Received from server: {message}");
-        }
-
-        private void OnServerMessageReceived(string message, TcpClient client)
-        {
-            LogMessage($"Received from client {client.Client.RemoteEndPoint}: {message}");
-            // Relay the message to other clients
-            _server.BroadcastMessageToAllExceptOneAsync(message, client).ConfigureAwait(false);
-        }
-
-        private void OnClientConnected(TcpClient client)
-        {
-            LogMessage($"Client connected: {client.Client.RemoteEndPoint}");
-        }
-
-        // Handle the Server Closing
+        // Handle client disconnection
         private void OnClientDisconnected()
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
                 LogMessage("Server Closed.");
-                HostButton.IsEnabled = true;
-                JoinButton.IsEnabled = true;
-                DisconnectButton.IsEnabled = false;
-                SendButton.IsEnabled = false;
+                ResetUIState();
             });
         }
 
-        // Handle the Enter key press in the MessageTextBox
-        private void MessageTextBox_KeyDown(object sender, KeyEventArgs e)
+        private void ToggleLogs_Click(object sender, RoutedEventArgs e)
         {
-            if (e.Key == Key.Enter && SendButton.IsEnabled)
+            // Toggle the visibility of the LogScrollViewer
+            if (LogScrollViewer.Visibility == Visibility.Visible)
             {
-                SendButton_Click(this, new RoutedEventArgs());
-                e.Handled = true; // Prevent the default action of the Enter key
+                LogScrollViewer.Visibility = Visibility.Collapsed;
+                ToggleLogs.Content = "Show Logs"; // Update button text to indicate the next action
+            }
+            else
+            {
+                LogScrollViewer.Visibility = Visibility.Visible;
+                ToggleLogs.Content = "Hide Logs"; // Update button text to indicate the next action
+            }
+        }
+
+
+        // Update the Game Rules Display TextBlock
+        private void UpdateGameRulesDisplay()
+        {
+            if (_gameMaster != null && _gameMaster._gameRules.Rules.Any())
+            {
+                var rulesText = string.Join("\n", _gameMaster._gameRules.Rules.Select(r =>
+                    $"{(r.IsGroupPunishment ? "Group" : "Individual")} Punishment: {r.RuleDescription} - {r.PunishmentDescription} ({r.PunishmentQuantity})"));
+
+                GameRulesTextBlock.Text = rulesText;
+            }
+            else if (_gameClient != null && _gameClient._gameRules.Rules.Any())
+            {
+                var rulesText = string.Join("\n", _gameClient._gameRules.Rules.Select(r =>
+                    $"{(r.IsGroupPunishment ? "Group" : "Individual")} Punishment: {r.RuleDescription} - {r.PunishmentDescription} ({r.PunishmentQuantity})"));
+
+                GameRulesTextBlock.Text = rulesText;
+            }
+            else
+            {
+                GameRulesTextBlock.Text = "No Game Rules Loaded";
             }
         }
     }

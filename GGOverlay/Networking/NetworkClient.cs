@@ -65,13 +65,17 @@ namespace Networking
             }
         }
 
+        private const string MessageTerminator = "<END>";
+
         public async Task SendMessageAsync(string message)
         {
             try
             {
                 if (_writer != null && IsConnected)
                 {
-                    await _writer.WriteLineAsync(message).ConfigureAwait(false);
+                    // Append the message terminator before sending
+                    string terminatedMessage = message + MessageTerminator;
+                    await _writer.WriteAsync(terminatedMessage).ConfigureAwait(false);
                     OnLog?.Invoke($"Sent message: {message}");
                 }
             }
@@ -83,23 +87,35 @@ namespace Networking
 
         private async Task ReceiveMessagesAsync(CancellationToken cancellationToken)
         {
+            StringBuilder messageBuffer = new StringBuilder();
+
             try
             {
                 while (!cancellationToken.IsCancellationRequested && IsConnected)
                 {
                     try
                     {
-                        string message = await _reader.ReadLineAsync().ConfigureAwait(false);
-                        if (message != null)
+                        // Read incoming data character by character
+                        char[] buffer = new char[1];
+                        int read;
+                        while ((read = await _reader.ReadAsync(buffer, 0, 1).ConfigureAwait(false)) > 0)
                         {
-                            OnMessageReceived?.Invoke(message);
-                            OnLog?.Invoke($"Received message: {message}");
-                        }
-                        else
-                        {
-                            // Null message indicates server disconnection
-                            OnLog?.Invoke("Server has disconnected.");
-                            break;
+                            // Append each character to the message buffer
+                            messageBuffer.Append(buffer[0]);
+
+                            // Check if the terminator is in the buffer
+                            if (messageBuffer.ToString().EndsWith(MessageTerminator))
+                            {
+                                // Remove the terminator and get the full message
+                                string completeMessage = messageBuffer.ToString().Replace(MessageTerminator, string.Empty);
+
+                                // Trigger the OnMessageReceived event
+                                OnMessageReceived?.Invoke(completeMessage);
+                                OnLog?.Invoke($"Received message: {completeMessage}");
+
+                                // Clear the buffer for the next message
+                                messageBuffer.Clear();
+                            }
                         }
                     }
                     catch (IOException ioEx) when (cancellationToken.IsCancellationRequested)
