@@ -123,6 +123,7 @@ namespace GGOverlay
                     _gameData.OnDataUpdated += UpdateGameDataUI;
 
                     await _client.ConnectAsync(ipAddress);
+                    await _gameData.AddProfile(_localProfile);
                     Logger.Log("Connected to the server, awaiting game data.");
                 }
                 else
