@@ -29,8 +29,6 @@ namespace GGOverlay
             JoinButton.IsEnabled = false;
             DisconnectButton.IsEnabled = true;
             SendButton.IsEnabled = true;
-
-            string ipAddress = IpTextBox.Text;
             await _server.StartAsync(25565); // Arbitrary port, can be adjusted
         }
 
@@ -47,9 +45,36 @@ namespace GGOverlay
             SendButton.IsEnabled = true;
 
             string ipAddress = IpTextBox.Text;
-            await _client.ConnectAsync(ipAddress, 25565);
-            LogMessage("Connected to server.");
+
+            try
+            {
+                // Attempt to connect with a timeout of 5 seconds
+                await _client.ConnectAsync(ipAddress, 25565, 5);
+                LogMessage("Connected to server.");
+            }
+            catch (TimeoutException ex)
+            {
+                // Log the timeout error and reset the UI state
+                LogMessage($"Connection timed out: {ex.Message}");
+                ResetUIState();
+            }
+            catch (Exception ex)
+            {
+                // Log any other connection errors and reset the UI state
+                LogMessage($"Error connecting to server: {ex.Message}");
+                ResetUIState();
+            }
         }
+
+        // Method to reset the UI state to allow the user to try connecting again
+        private void ResetUIState()
+        {
+            HostButton.IsEnabled = true;
+            JoinButton.IsEnabled = true;
+            DisconnectButton.IsEnabled = false;
+            SendButton.IsEnabled = false;
+        }
+
 
         private void DisconnectButton_Click(object sender, RoutedEventArgs e)
         {
@@ -116,12 +141,12 @@ namespace GGOverlay
             LogMessage($"Client connected: {client.Client.RemoteEndPoint}");
         }
 
-        // Handle the client disconnection
+        // Handle the Server Closing
         private void OnClientDisconnected()
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
-                LogMessage("Client disconnected.");
+                LogMessage("Server Closed.");
                 HostButton.IsEnabled = true;
                 JoinButton.IsEnabled = true;
                 DisconnectButton.IsEnabled = false;

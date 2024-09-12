@@ -1,0 +1,14 @@
+[
+  {
+    "IsGroupPunishment": false,
+    "RuleDescription": "When you roll a 7, drink",
+    "PunishmentDescription": "{0} drinks {1}!",
+    "PunishmentQuantity": 3
+  },
+  {
+    "IsGroupPunishment": true,
+    "RuleDescription": "When you complete a mission, cheers to success",
+    "PunishmentDescription": "Cheers, drink {1}",
+    "PunishmentQuantity": 1
+  }
+]

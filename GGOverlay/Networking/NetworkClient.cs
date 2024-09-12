@@ -22,26 +22,46 @@ namespace Networking
 
         public bool IsConnected => _client?.Connected ?? false;
 
-        public async Task ConnectAsync(string ipAddress, int port)
+        // ConnectAsync method with a connection timeout
+        public async Task ConnectAsync(string ipAddress, int port, int timeoutSeconds = 5)
         {
             try
             {
                 _isDisconnecting = false;
                 _client = new TcpClient();
-                await _client.ConnectAsync(ipAddress, port);
+                _cancellationTokenSource = new CancellationTokenSource();
+
+                // Create a cancellation token with a timeout
+                var connectionTask = _client.ConnectAsync(ipAddress, port);
+                var delayTask = Task.Delay(TimeSpan.FromSeconds(timeoutSeconds), _cancellationTokenSource.Token);
+
+                // Wait for either the connection task to complete or the timeout
+                if (await Task.WhenAny(connectionTask, delayTask) == delayTask)
+                {
+                    // Cancel the connection attempt if it times out
+                    _cancellationTokenSource.Cancel();
+                    throw new TimeoutException($"Connection attempt to {ipAddress}:{port} timed out after {timeoutSeconds} seconds.");
+                }
+
+                // If the connection was successful, proceed
                 _stream = _client.GetStream();
                 _reader = new StreamReader(_stream, Encoding.UTF8);
                 _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
-                _cancellationTokenSource = new CancellationTokenSource();
 
                 OnLog?.Invoke($"Connected to server at {ipAddress}:{port}");
 
                 // Start receiving messages asynchronously
                 _ = ReceiveMessagesAsync(_cancellationTokenSource.Token);
             }
+            catch (TimeoutException ex)
+            {
+                OnLog?.Invoke($"Timeout error: {ex.Message}");
+                throw; // Re-throw the exception to propagate the timeout error
+            }
             catch (Exception ex)
             {
                 OnLog?.Invoke($"Error connecting to server: {ex.Message}");
+                throw; // Re-throw the exception to indicate connection failure
             }
         }
 
