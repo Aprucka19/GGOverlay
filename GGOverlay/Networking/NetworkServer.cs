@@ -19,14 +19,14 @@ namespace Networking
         public event Action<TcpClient> OnClientConnected;
         public event Action<string> OnLog;
 
-        public async Task StartAsync(string ipAddress, int port)
+        public async Task StartAsync(int port)
         {
             try
             {
                 _cancellationTokenSource = new CancellationTokenSource();
-                _listener = new TcpListener(IPAddress.Parse(ipAddress), port);
+                _listener = new TcpListener(IPAddress.Any, port);
                 _listener.Start();
-                OnLog?.Invoke($"Server started on {ipAddress}:{port}");
+                OnLog?.Invoke($"Server started on port: {port}");
 
                 while (!_cancellationTokenSource.Token.IsCancellationRequested)
                 {

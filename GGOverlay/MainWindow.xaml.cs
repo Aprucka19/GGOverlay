@@ -31,7 +31,7 @@ namespace GGOverlay
             SendButton.IsEnabled = true;
 
             string ipAddress = IpTextBox.Text;
-            await _server.StartAsync(ipAddress, 9000); // Arbitrary port, can be adjusted
+            await _server.StartAsync(25565); // Arbitrary port, can be adjusted
         }
 
         private async void JoinButton_Click(object sender, RoutedEventArgs e)
@@ -47,7 +47,7 @@ namespace GGOverlay
             SendButton.IsEnabled = true;
 
             string ipAddress = IpTextBox.Text;
-            await _client.ConnectAsync(ipAddress, 9000);
+            await _client.ConnectAsync(ipAddress, 25565);
             LogMessage("Connected to server.");
         }
 
