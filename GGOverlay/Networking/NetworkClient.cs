@@ -1,55 +1,154 @@
-﻿// Networking/NetworkClient.cs
-using GGOverlay.Utilities; // Add this using statement
-using System;
+﻿using System;
+using System.IO;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
-namespace GGOverlay.Networking
+namespace Networking
 {
     public class NetworkClient
     {
         private TcpClient _client;
-        private const int Port = 5000;
+        private NetworkStream _stream;
+        private StreamReader _reader;
+        private StreamWriter _writer;
+        private CancellationTokenSource _cancellationTokenSource;
+        private bool _isDisconnecting = false; // Flag to prevent multiple disconnections
 
         public event Action<string> OnMessageReceived;
+        public event Action<string> OnLog;
+        public event Action OnDisconnected; // Event to handle disconnection
 
-        public async Task ConnectAsync(string ipAddress)
+        public bool IsConnected => _client?.Connected ?? false;
+
+        public async Task ConnectAsync(string ipAddress, int port)
         {
             try
             {
+                _isDisconnecting = false;
                 _client = new TcpClient();
-                await _client.ConnectAsync(ipAddress, Port);
-                Logger.Log("Connected to the server.");
-                await Task.Run(() => ReceiveDataAsync());
+                await _client.ConnectAsync(ipAddress, port);
+                _stream = _client.GetStream();
+                _reader = new StreamReader(_stream, Encoding.UTF8);
+                _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
+                _cancellationTokenSource = new CancellationTokenSource();
+
+                OnLog?.Invoke($"Connected to server at {ipAddress}:{port}");
+
+                // Start receiving messages asynchronously
+                _ = ReceiveMessagesAsync(_cancellationTokenSource.Token);
             }
             catch (Exception ex)
             {
-                Logger.Log($"Error connecting to server: {ex.Message}");
+                OnLog?.Invoke($"Error connecting to server: {ex.Message}");
             }
-        }
-
-        private async Task ReceiveDataAsync()
-        {
-            NetworkStream stream = _client.GetStream();
-            byte[] buffer = new byte[1000024];
-            int bytesRead;
-
-            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
-            {
-                string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                OnMessageReceived?.Invoke(message);
-            }
-
-            Logger.Log("Disconnected from server.");
         }
 
         public async Task SendMessageAsync(string message)
         {
-            if (_client != null && _client.Connected)
+            try
             {
-                byte[] data = Encoding.UTF8.GetBytes(message);
-                await _client.GetStream().WriteAsync(data, 0, data.Length);
+                if (_writer != null && IsConnected)
+                {
+                    await _writer.WriteLineAsync(message).ConfigureAwait(false);
+                    OnLog?.Invoke($"Sent message: {message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"Error sending message: {ex.Message}");
+            }
+        }
+
+        private async Task ReceiveMessagesAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested && IsConnected)
+                {
+                    try
+                    {
+                        string message = await _reader.ReadLineAsync().ConfigureAwait(false);
+                        if (message != null)
+                        {
+                            OnMessageReceived?.Invoke(message);
+                            OnLog?.Invoke($"Received message: {message}");
+                        }
+                        else
+                        {
+                            // Null message indicates server disconnection
+                            OnLog?.Invoke("Server has disconnected.");
+                            break;
+                        }
+                    }
+                    catch (IOException ioEx) when (cancellationToken.IsCancellationRequested)
+                    {
+                        // Expected exception due to cancellation; handle gracefully
+                        OnLog?.Invoke("Receiving loop canceled due to client disconnect.");
+                        break;
+                    }
+                    catch (IOException ioEx)
+                    {
+                        // Handle disconnection scenario from the server
+                        OnLog?.Invoke($"Disconnected from server: {ioEx.Message}");
+                        break;
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Stream has been disposed; expected when shutting down
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        OnLog?.Invoke($"Error receiving message: {ex.Message}");
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex) when (cancellationToken.IsCancellationRequested)
+            {
+                // Handle the task cancellation gracefully
+                OnLog?.Invoke("Receiving loop canceled.");
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"Error receiving message: {ex.Message}");
+            }
+            finally
+            {
+                // Trigger disconnect events if the loop exits
+                if (!_isDisconnecting) // Avoid redundant disconnections
+                {
+                    Disconnect();
+                    OnDisconnected?.Invoke(); // Notify that client has been disconnected
+                }
+            }
+        }
+
+        public void Disconnect()
+        {
+            if (_isDisconnecting) return; // Prevent multiple disconnection attempts
+            _isDisconnecting = true;
+
+            OnLog?.Invoke("Disconnecting from server...");
+
+            try
+            {
+                _cancellationTokenSource?.Cancel(); // Cancel receiving loop
+                _reader?.Dispose();
+                _writer?.Dispose();
+                _stream?.Dispose();
+                _client?.Close();
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"Error during disconnect: {ex.Message}");
+            }
+            finally
+            {
+                
+                OnLog?.Invoke("Disconnected from server.");
             }
         }
     }

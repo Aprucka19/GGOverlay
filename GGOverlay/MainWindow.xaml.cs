@@ -1,277 +1,142 @@
-﻿// MainWindow.xaml.cs
-using GGOverlay.Data;
-using GGOverlay.Networking;
-using GGOverlay.Utilities;
-using Microsoft.Win32;
-using System;
-using System.IO;
+﻿using System;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media.Imaging;
+using System.Windows.Input;
+using Networking;
 
 namespace GGOverlay
 {
     public partial class MainWindow : Window
     {
-        private GameData _gameData;
-        private Profile _localProfile;
         private NetworkServer _server;
         private NetworkClient _client;
 
         public MainWindow()
         {
             InitializeComponent();
-            Logger.OnLogMessage += Log; // Subscribe to centralized logging
         }
 
-        // Create a profile when the user clicks Create Profile
-        private void CreateProfileButton_Click(object sender, RoutedEventArgs e)
-        {
-            _localProfile = CreateProfile();
-            if (_localProfile != null)
-            {
-                Logger.Log($"Profile created: {_localProfile.Name}");
-                UpdateLocalProfileUI();
-            }
-        }
-
-        private Profile CreateProfile()
-        {
-            OpenFileDialog openFileDialog = new OpenFileDialog
-            {
-                Filter = "Image Files|*.jpg;*.jpeg;*.png;*.bmp"
-            };
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                BitmapImage originalImage = new BitmapImage(new Uri(openFileDialog.FileName));
-                BitmapImage resizedImage = ResizeImage(originalImage, 128, 128); // Resize the image to 128x128 pixels
-                string name = PromptForName();
-                decimal drinkScale = PromptForDrinkScale();
-                string imageBase64 = ConvertBitmapImageToBase64(resizedImage); // Convert resized image to base64 for profile
-
-                return new Profile(name, drinkScale, imageBase64);
-            }
-            return null;
-        }
-
-        // Method to resize a BitmapImage to the specified width and height
-        private BitmapImage ResizeImage(BitmapImage originalImage, int width, int height)
-        {
-            // Create a DrawingVisual to render the image
-            var drawingVisual = new System.Windows.Media.DrawingVisual();
-            using (var drawingContext = drawingVisual.RenderOpen())
-            {
-                drawingContext.DrawImage(originalImage, new System.Windows.Rect(0, 0, width, height));
-            }
-
-            // Render the DrawingVisual into a RenderTargetBitmap
-            var resizedBitmap = new RenderTargetBitmap(width, height, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
-            resizedBitmap.Render(drawingVisual);
-
-            // Convert RenderTargetBitmap back to BitmapImage
-            var bitmapImage = new BitmapImage();
-            using (MemoryStream stream = new MemoryStream())
-            {
-                BitmapEncoder encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(resizedBitmap));
-                encoder.Save(stream);
-                stream.Position = 0;
-
-                bitmapImage.BeginInit();
-                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                bitmapImage.StreamSource = stream;
-                bitmapImage.EndInit();
-                bitmapImage.Freeze();
-            }
-
-            return bitmapImage;
-        }
-
-
-
-        // Host a server and create GameData
         private async void HostButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_server == null && _localProfile != null)
-            {
-                _server = new NetworkServer();
-                _gameData = new GameData(_server); // Pass the server to GameData
-                _gameData.OnDataUpdated += UpdateGameDataUI;
+            _server = new NetworkServer();
+            _server.OnLog += LogMessage;
+            _server.OnMessageReceived += OnServerMessageReceived;
+            _server.OnClientConnected += OnClientConnected;
 
-                await _gameData.AddProfile(_localProfile);
-                await _server.StartAsync();
-                Logger.Log("Server hosted successfully with initial game data.");
-            }
-            else
-            {
-                Logger.Log("Create a profile before hosting or server is already running.");
-            }
+            HostButton.IsEnabled = false;
+            JoinButton.IsEnabled = false;
+            DisconnectButton.IsEnabled = true;
+            SendButton.IsEnabled = true;
+
+            string ipAddress = IpTextBox.Text;
+            await _server.StartAsync(ipAddress, 9000); // Arbitrary port, can be adjusted
         }
 
-        // Join as a client and synchronize GameData
         private async void JoinButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_client == null && _localProfile != null)
-            {
-                string ipAddress = IpAddressTextBox.Text.Trim();
-                if (!string.IsNullOrEmpty(ipAddress))
-                {
-                    _client = new NetworkClient();
-                    _gameData = new GameData(client: _client); // Pass the client to GameData
-                    _gameData.OnDataUpdated += UpdateGameDataUI;
+            _client = new NetworkClient();
+            _client.OnLog += LogMessage;
+            _client.OnMessageReceived += OnClientMessageReceived;
+            _client.OnDisconnected += OnClientDisconnected; // Handle client disconnection
 
-                    await _client.ConnectAsync(ipAddress);
-                    await _gameData.AddProfile(_localProfile);
-                    Logger.Log("Connected to the server, awaiting game data.");
-                }
-                else
-                {
-                    Logger.Log("Please enter a valid IP address.");
-                }
-            }
-            else
-            {
-                Logger.Log("Create a profile before joining or already connected as a client.");
-            }
+            HostButton.IsEnabled = false;
+            JoinButton.IsEnabled = false;
+            DisconnectButton.IsEnabled = true;
+            SendButton.IsEnabled = true;
+
+            string ipAddress = IpTextBox.Text;
+            await _client.ConnectAsync(ipAddress, 9000);
+            LogMessage("Connected to server.");
         }
 
-        // Increment the counter when the Plus button is clicked
-        private async void PlusButton_Click(object sender, RoutedEventArgs e)
+        private void DisconnectButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_gameData != null)
-            {
-                await _gameData.UpdateCounter(_gameData.Counter.Value + 1);
-            }
+            Disconnect();
+
+            HostButton.IsEnabled = true;
+            JoinButton.IsEnabled = true;
+            DisconnectButton.IsEnabled = false;
+            SendButton.IsEnabled = false;
         }
 
-        // Decrement the counter when the Minus button is clicked
-        private async void MinusButton_Click(object sender, RoutedEventArgs e)
+        private void Disconnect()
         {
-            if (_gameData != null)
-            {
-                await _gameData.UpdateCounter(_gameData.Counter.Value - 1);
-            }
+            if (_server != null)
+                _server.Stop();
+            else if (_client != null)
+                _client.Disconnect();
+            LogMessage("Disconnected.");
         }
 
-        // Update the local profile UI
-        private void UpdateLocalProfileUI()
+        private async void SendButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_localProfile != null)
+            string message = MessageTextBox.Text;
+            MessageTextBox.Clear();
+
+            if (_client != null && _client.IsConnected)
             {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    LocalProfileName.Text = _localProfile.Name;
-                    LocalProfileScaler.Text = $"Scaler: {_localProfile.DrinkScale}";
-                    LocalProfileImage.Source = ConvertBase64ToBitmapImage(_localProfile.ImageBase64); // Convert base64 to BitmapImage for display
-                });
+                await _client.SendMessageAsync(message);
+                LogMessage($"Sent message: {message}");
             }
-        }
-
-        // Convert a base64 string to a BitmapImage for UI display
-        private BitmapImage ConvertBase64ToBitmapImage(string base64)
-        {
-            if (string.IsNullOrEmpty(base64)) return null;
-
-            byte[] imageBytes = Convert.FromBase64String(base64);
-            BitmapImage bitmapImage = new BitmapImage();
-
-            using (MemoryStream ms = new MemoryStream(imageBytes))
+            else if (_server != null)
             {
-                bitmapImage.BeginInit();
-                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                bitmapImage.StreamSource = ms;
-                bitmapImage.EndInit();
+                await _server.BroadcastMessageAsync(message);
+                LogMessage($"Broadcasted message: {message}");
             }
 
-            return bitmapImage;
+            // Keep the focus on the MessageTextBox after sending
+            MessageTextBox.Focus();
         }
 
-        // Convert BitmapImage to a base64 string
-        private string ConvertBitmapImageToBase64(BitmapImage bitmapImage)
-        {
-            if (bitmapImage == null) return string.Empty;
-
-            using (var ms = new MemoryStream())
-            {
-                BitmapEncoder encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(bitmapImage));
-                encoder.Save(ms);
-                return Convert.ToBase64String(ms.ToArray());
-            }
-        }
-
-        // Update the entire GameData UI
-        private void UpdateGameDataUI()
-        {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                CounterTextBox.Text = _gameData.Counter.Value.ToString();
-                UpdateProfilesUI();
-            });
-        }
-
-        // Update the connected profiles UI
-        private void UpdateProfilesUI()
-        {
-            ProfilesPanel.Children.Clear();
-            foreach (var profile in _gameData.Profiles)
-            {
-                var profilePanel = new StackPanel
-                {
-                    Orientation = Orientation.Vertical,
-                    Margin = new Thickness(10)
-                };
-
-                var profileImage = new Image
-                {
-                    Width = 80,
-                    Height = 80,
-                    Source = ConvertBase64ToBitmapImage(profile.ImageBase64), // Convert base64 to BitmapImage
-                    Margin = new Thickness(0, 0, 0, 5)
-                };
-
-                var profileName = new TextBlock
-                {
-                    Text = profile.Name,
-                    FontWeight = FontWeights.Bold,
-                    HorizontalAlignment = HorizontalAlignment.Center
-                };
-
-                var profileScaler = new TextBlock
-                {
-                    Text = $"Scaler: {profile.DrinkScale}",
-                    HorizontalAlignment = HorizontalAlignment.Center
-                };
-
-                profilePanel.Children.Add(profileImage);
-                profilePanel.Children.Add(profileName);
-                profilePanel.Children.Add(profileScaler);
-
-                ProfilesPanel.Children.Add(profilePanel);
-            }
-        }
-
-        // Logging utility to update UI
-        private void Log(string message)
+        private void LogMessage(string message)
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
                 LogTextBox.AppendText($"{message}\n");
-                LogTextBox.ScrollToEnd();
+                LogScrollViewer.ScrollToEnd(); // Scroll to the bottom of the log automatically
             });
         }
 
-        private string PromptForName()
+        private void OnClientMessageReceived(string message)
         {
-            return Microsoft.VisualBasic.Interaction.InputBox("Enter Profile Name:", "Profile Name", "Player");
+            LogMessage($"Received from server: {message}");
         }
 
-        private decimal PromptForDrinkScale()
+        private void OnServerMessageReceived(string message, TcpClient client)
         {
-            string input = Microsoft.VisualBasic.Interaction.InputBox("Enter Drink Scale:", "Drink Scale", "1.0");
-            return decimal.TryParse(input, out decimal result) ? result : 1.0m;
+            LogMessage($"Received from client {client.Client.RemoteEndPoint}: {message}");
+            // Relay the message to other clients
+            _server.BroadcastMessageToAllExceptOneAsync(message, client).ConfigureAwait(false);
+        }
+
+        private void OnClientConnected(TcpClient client)
+        {
+            LogMessage($"Client connected: {client.Client.RemoteEndPoint}");
+        }
+
+        // Handle the client disconnection
+        private void OnClientDisconnected()
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                LogMessage("Client disconnected.");
+                HostButton.IsEnabled = true;
+                JoinButton.IsEnabled = true;
+                DisconnectButton.IsEnabled = false;
+                SendButton.IsEnabled = false;
+            });
+        }
+
+        // Handle the Enter key press in the MessageTextBox
+        private void MessageTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && SendButton.IsEnabled)
+            {
+                SendButton_Click(this, new RoutedEventArgs());
+                e.Handled = true; // Prevent the default action of the Enter key
+            }
         }
     }
 }

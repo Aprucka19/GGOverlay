@@ -1,90 +1,190 @@
-﻿// Networking/NetworkServer.cs
-using System;
-using System.Collections.Generic;
+﻿using System;
+using System.Collections.Concurrent;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
-namespace GGOverlay.Networking
+namespace Networking
 {
     public class NetworkServer
     {
-        private TcpListener _server;
-        public List<TcpClient> ConnectedClients { get; private set; } = new List<TcpClient>(); // Track connected clients
-        private const int Port = 5000;
+        private TcpListener _listener;
+        private ConcurrentDictionary<TcpClient, StreamWriter> _clients = new ConcurrentDictionary<TcpClient, StreamWriter>();
+        private CancellationTokenSource _cancellationTokenSource;
 
-        public event Action<string,TcpClient> OnMessageReceived;
-        public event Action<TcpClient> OnClientConnected; // Event triggered when a client connects
+        public event Action<string, TcpClient> OnMessageReceived;
+        public event Action<TcpClient> OnClientConnected;
+        public event Action<string> OnLog;
 
-        public bool HasClients => ConnectedClients.Count > 0; // Check if there are any connected clients
-
-        // Start the server
-        public async Task StartAsync()
+        public async Task StartAsync(string ipAddress, int port)
         {
             try
             {
-                _server = new TcpListener(IPAddress.Any, Port);
-                _server.Start();
-                Console.WriteLine("Server started... Waiting for clients.");
-                await Task.Run(() => AcceptClientsAsync());
+                _cancellationTokenSource = new CancellationTokenSource();
+                _listener = new TcpListener(IPAddress.Parse(ipAddress), port);
+                _listener.Start();
+                OnLog?.Invoke($"Server started on {ipAddress}:{port}");
+
+                while (!_cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    var client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                    if (_cancellationTokenSource.Token.IsCancellationRequested)
+                    {
+                        client.Close();
+                        break;
+                    }
+
+                    OnClientConnected?.Invoke(client);
+                    OnLog?.Invoke($"Client connected: {client.Client?.RemoteEndPoint}");
+                    _ = HandleClientAsync(client, _cancellationTokenSource.Token);
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error starting server: {ex.Message}");
+                if (!_cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    OnLog?.Invoke($"Error starting server: {ex.Message}");
+                }
             }
         }
 
-        // Accept incoming clients
-        private async Task AcceptClientsAsync()
+        private async Task HandleClientAsync(TcpClient client, CancellationToken cancellationToken)
         {
-            while (true)
+            var stream = client.GetStream();
+            var reader = new StreamReader(stream, Encoding.UTF8);
+            var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+
+            _clients.TryAdd(client, writer);
+            OnLog?.Invoke($"Handling client: {client.Client?.RemoteEndPoint}");
+
+            try
             {
-                var client = await _server.AcceptTcpClientAsync();
-                ConnectedClients.Add(client);
-                OnClientConnected?.Invoke(client); // Notify GameData when a client connects
-                Console.WriteLine("Client connected.");
-                _ = Task.Run(() => ReceiveDataAsync(client));
-            }
-        }
-
-        // Receive data from a connected client
-        private async Task ReceiveDataAsync(TcpClient client)
-        {
-            NetworkStream stream = client.GetStream();
-            byte[] buffer = new byte[1000024];
-            int bytesRead;
-
-            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
-            {
-                string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                OnMessageReceived?.Invoke(message,client); // Pass the message without specifying the client
-            }
-
-            Console.WriteLine("Client disconnected.");
-            ConnectedClients.Remove(client);
-            client.Close();
-        }
-
-        // Broadcast a message to all connected clients
-        public async Task BroadcastMessageAsync(string message)
-        {
-            byte[] data = Encoding.UTF8.GetBytes(message);
-
-            foreach (TcpClient client in ConnectedClients)
-            {
-                if (client.Connected)
+                while (!IsClientDisconnected(client) && !cancellationToken.IsCancellationRequested)
                 {
                     try
                     {
-                        await client.GetStream().WriteAsync(data, 0, data.Length);
+                        string message = await reader.ReadLineAsync().ConfigureAwait(false);
+                        if (cancellationToken.IsCancellationRequested) break;
+
+                        if (message != null)
+                        {
+                            OnMessageReceived?.Invoke(message, client);
+                            OnLog?.Invoke($"Received message from {client.Client?.RemoteEndPoint}: {message}");
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    catch (IOException ioEx) when (cancellationToken.IsCancellationRequested)
+                    {
+                        // Expected exception on cancellation, handle gracefully
+                        break;
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Error sending to client: {ex.Message}");
+                        OnLog?.Invoke($"Error handling client {client.Client?.RemoteEndPoint}: {ex.Message}");
+                        break;
                     }
                 }
             }
+            finally
+            {
+                _clients.TryRemove(client, out _);
+                if (client?.Client != null)
+                {
+                    OnLog?.Invoke($"Client disconnected: {client.Client.RemoteEndPoint}");
+                }
+                client?.Close();
+            }
+        }
+
+        private bool IsClientDisconnected(TcpClient client)
+        {
+            try
+            {
+                return client.Client?.Poll(1, SelectMode.SelectRead) == true && client.Available == 0;
+            }
+            catch (SocketException)
+            {
+                return true;
+            }
+            catch (ObjectDisposedException)
+            {
+                return true;
+            }
+        }
+
+        public async Task BroadcastMessageAsync(string message)
+        {
+            OnLog?.Invoke($"Broadcasting message: {message}");
+            foreach (var writer in _clients.Values)
+            {
+                try
+                {
+                    await writer.WriteLineAsync(message).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    OnLog?.Invoke($"Error broadcasting to a client: {ex.Message}");
+                }
+            }
+        }
+
+        public async Task BroadcastMessageToAllExceptOneAsync(string message, TcpClient excludedClient)
+        {
+            OnLog?.Invoke($"Broadcasting message to all except {excludedClient.Client?.RemoteEndPoint}: {message}");
+            foreach (var kvp in _clients)
+            {
+                if (kvp.Key != excludedClient)
+                {
+                    try
+                    {
+                        await kvp.Value.WriteLineAsync(message).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        OnLog?.Invoke($"Error broadcasting to a client: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        public async Task SendMessageToClientAsync(string message, TcpClient client)
+        {
+            if (_clients.TryGetValue(client, out StreamWriter writer))
+            {
+                try
+                {
+                    await writer.WriteLineAsync(message).ConfigureAwait(false);
+                    OnLog?.Invoke($"Sent message to {client.Client?.RemoteEndPoint}: {message}");
+                }
+                catch (Exception ex)
+                {
+                    OnLog?.Invoke($"Error sending message to {client.Client?.RemoteEndPoint}: {ex.Message}");
+                }
+            }
+        }
+
+        public void Stop()
+        {
+            OnLog?.Invoke("Stopping server...");
+            _cancellationTokenSource?.Cancel();
+
+            foreach (var client in _clients.Keys)
+            {
+                if (client != null)
+                {
+                    OnLog?.Invoke($"Closing connection to {client.Client?.RemoteEndPoint}");
+                    client.Close();
+                }
+            }
+
+            _listener.Stop();
+            OnLog?.Invoke("Server stopped.");
         }
     }
 }
