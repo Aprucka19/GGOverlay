@@ -13,10 +13,10 @@ namespace GGOverlay.Game
         private NetworkClient _networkClient;
 
         // Local player information
-        private PlayerInfo _localPlayer;
+        public PlayerInfo _localPlayer;
 
         // List of all players, including the local player
-        private List<PlayerInfo> _players;
+        public List<PlayerInfo> _players;
 
         public GameRules _gameRules;
 

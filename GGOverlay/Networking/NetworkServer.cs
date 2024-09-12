@@ -89,7 +89,7 @@ namespace Networking
 
                                 // Trigger the OnMessageReceived event
                                 OnMessageReceived?.Invoke(completeMessage, client);
-                                OnLog?.Invoke($"Received message from {client.Client?.RemoteEndPoint}: {completeMessage}");
+                                //OnLog?.Invoke($"Received message from {client.Client?.RemoteEndPoint}: {completeMessage}");
 
                                 // Clear the buffer for the next message
                                 messageBuffer.Clear();
@@ -137,7 +137,7 @@ namespace Networking
 
         public async Task BroadcastMessageAsync(string message)
         {
-            OnLog?.Invoke($"Broadcasting message: {message}");
+            //OnLog?.Invoke($"Broadcasting message: {message}");
             foreach (var writer in _clients.Values)
             {
                 try
@@ -154,7 +154,7 @@ namespace Networking
 
         public async Task BroadcastMessageToAllExceptOneAsync(string message, TcpClient excludedClient)
         {
-            OnLog?.Invoke($"Broadcasting message to all except {excludedClient.Client?.RemoteEndPoint}: {message}");
+            //OnLog?.Invoke($"Broadcasting message to all except {excludedClient.Client?.RemoteEndPoint}: {message}");
             foreach (var kvp in _clients)
             {
                 if (kvp.Key != excludedClient)
@@ -180,7 +180,7 @@ namespace Networking
                 {
                     // Append the message terminator before sending
                     await writer.WriteAsync(message + MessageTerminator).ConfigureAwait(false);
-                    OnLog?.Invoke($"Sent message to {client.Client?.RemoteEndPoint}: {message}");
+                    //OnLog?.Invoke($"Sent message to {client.Client?.RemoteEndPoint}: {message}");
                 }
                 catch (Exception ex)
                 {

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 
@@ -28,13 +27,13 @@ namespace GGOverlay.Game
             DrinkModifier = drinkModifier;
         }
 
-        // Method to save a list of PlayerInfo objects to a JSON file
-        public static void SaveToFile(string filePath, List<PlayerInfo> players)
+        // Method to save a single PlayerInfo object to a JSON file
+        public static void SaveToFile(string filePath, PlayerInfo player)
         {
             try
             {
-                // Serialize the list of players to JSON format using Newtonsoft.Json
-                string json = JsonConvert.SerializeObject(players, Formatting.Indented);
+                // Serialize the player object to JSON format using Newtonsoft.Json
+                string json = JsonConvert.SerializeObject(player, Formatting.Indented);
 
                 // Write the JSON string to the specified file path
                 File.WriteAllText(filePath, json);
@@ -46,29 +45,29 @@ namespace GGOverlay.Game
             }
         }
 
-        // Method to load a list of PlayerInfo objects from a JSON file
-        public static List<PlayerInfo> LoadFromFile(string filePath)
+        // Method to load a single PlayerInfo object from a JSON file
+        public static PlayerInfo LoadFromFile(string filePath)
         {
             try
             {
                 if (!File.Exists(filePath))
                 {
                     OnLog?.Invoke("The specified file does not exist.");
-                    return new List<PlayerInfo>();
+                    return new PlayerInfo(); // Return a default player object
                 }
 
                 // Read the JSON string from the specified file path
                 string json = File.ReadAllText(filePath);
 
-                // Deserialize the JSON string into a list of PlayerInfo objects using Newtonsoft.Json
-                List<PlayerInfo> players = JsonConvert.DeserializeObject<List<PlayerInfo>>(json) ?? new List<PlayerInfo>();
+                // Deserialize the JSON string into a PlayerInfo object using Newtonsoft.Json
+                PlayerInfo player = JsonConvert.DeserializeObject<PlayerInfo>(json) ?? new PlayerInfo();
                 OnLog?.Invoke("Player information loaded successfully.");
-                return players;
+                return player;
             }
             catch (Exception ex)
             {
                 OnLog?.Invoke($"Error loading player information from file: {ex.Message}");
-                return new List<PlayerInfo>();
+                return new PlayerInfo(); // Return a default player object in case of error
             }
         }
 

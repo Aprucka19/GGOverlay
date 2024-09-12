@@ -2,7 +2,6 @@
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Input;
 using GGOverlay.Game;
 using Microsoft.Win32;
 
@@ -22,12 +21,18 @@ namespace GGOverlay
         {
             _gameMaster = new GameMaster();
             _gameMaster.OnLog += LogMessage;
-            _gameMaster.UIUpdate += UpdateGameRulesDisplay;
+            _gameMaster.UIUpdate += UpdateUIElements;
 
             HostButton.IsEnabled = false;
             JoinButton.IsEnabled = false;
             DisconnectButton.IsEnabled = true;
+            IpTextBox.Visibility = Visibility.Collapsed;
             SetRules.Visibility = Visibility.Visible;
+            PlayerInfoSection.Visibility = Visibility.Visible;
+            EditPlayerButton.Visibility = Visibility.Visible;
+            GameRulesTextBlock.Visibility = Visibility.Visible;
+            UpdatePlayerInfoDisplay();
+            UpdateGameRulesDisplay();
 
             try
             {
@@ -40,6 +45,73 @@ namespace GGOverlay
             }
         }
 
+        private async void JoinButton_Click(object sender, RoutedEventArgs e)
+        {
+            _gameClient = new GameClient();
+            _gameClient.OnLog += LogMessage;
+            _gameClient.OnDisconnectedGameClient += OnClientDisconnected;
+            _gameClient.UIUpdate += UpdateUIElements;
+
+            HostButton.IsEnabled = false;
+            JoinButton.IsEnabled = false;
+            DisconnectButton.IsEnabled = true;
+            IpTextBox.Visibility = Visibility.Collapsed;
+            PlayerInfoSection.Visibility = Visibility.Visible;
+            EditPlayerButton.Visibility = Visibility.Visible;
+            GameRulesTextBlock.Visibility = Visibility.Visible;
+            UpdatePlayerInfoDisplay();
+            UpdateGameRulesDisplay();
+
+            string ipAddress = IpTextBox.Text;
+
+            bool success = await _gameClient.JoinGame(ipAddress, 25565);
+            if (!success)
+            {
+                ResetUIState();
+            }
+        }
+
+        private void ResetUIState()
+        {
+            HostButton.IsEnabled = true;
+            JoinButton.IsEnabled = true;
+            DisconnectButton.IsEnabled = false;
+            IpTextBox.Visibility = Visibility.Visible;
+            PlayerInfoSection.Visibility = Visibility.Collapsed;
+            EditPlayerButton.Visibility = Visibility.Collapsed;
+            GameRulesTextBlock.Visibility = Visibility.Collapsed;
+        }
+
+        private void DisconnectButton_Click(object sender, RoutedEventArgs e)
+        {
+            ResetUIState();
+            Disconnect();
+        }
+
+        private void Disconnect()
+        {
+            _gameMaster?.StopServer();
+            _gameClient?.Disconnect();
+            LogMessage("Disconnected.");
+        }
+
+        private void LogMessage(string message)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                LogTextBox.AppendText($"{message}\n");
+                LogScrollViewer.ScrollToEnd();
+            });
+        }
+
+        private void OnClientDisconnected()
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                LogMessage("Server Closed.");
+                ResetUIState();
+            });
+        }
 
         private async void SetRules_Click(object sender, RoutedEventArgs e)
         {
@@ -74,84 +146,20 @@ namespace GGOverlay
             }
         }
 
-        private async void JoinButton_Click(object sender, RoutedEventArgs e)
-        {
-            _gameClient = new GameClient();
-            _gameClient.OnLog += LogMessage;
-            _gameClient.OnDisconnectedGameClient += OnClientDisconnected;
-            _gameClient.UIUpdate += UpdateGameRulesDisplay;
-
-            HostButton.IsEnabled = false;
-            JoinButton.IsEnabled = false;
-            DisconnectButton.IsEnabled = true;
-
-            string ipAddress = IpTextBox.Text;
-
-            bool success = await _gameClient.JoinGame(ipAddress, 25565);
-            if (!success)
-            {
-                ResetUIState();
-            }
-        }
-
-        // Method to reset the UI state to allow the user to try connecting again
-        private void ResetUIState()
-        {
-            HostButton.IsEnabled = true;
-            JoinButton.IsEnabled = true;
-            DisconnectButton.IsEnabled = false;
-        }
-
-        private void DisconnectButton_Click(object sender, RoutedEventArgs e)
-        {
-            Disconnect();
-
-            ResetUIState();
-        }
-
-        private void Disconnect()
-        {
-            _gameMaster?.StopServer();
-            _gameClient?.Disconnect();
-            LogMessage("Disconnected.");
-        }
-
-        private void LogMessage(string message)
-        {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                LogTextBox.AppendText($"{message}\n");
-                LogScrollViewer.ScrollToEnd();
-            });
-        }
-
-        // Handle client disconnection
-        private void OnClientDisconnected()
-        {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                LogMessage("Server Closed.");
-                ResetUIState();
-            });
-        }
-
         private void ToggleLogs_Click(object sender, RoutedEventArgs e)
         {
-            // Toggle the visibility of the LogScrollViewer
             if (LogScrollViewer.Visibility == Visibility.Visible)
             {
                 LogScrollViewer.Visibility = Visibility.Collapsed;
-                ToggleLogs.Content = "Show Logs"; // Update button text to indicate the next action
+                ToggleLogs.Content = "Show Logs";
             }
             else
             {
                 LogScrollViewer.Visibility = Visibility.Visible;
-                ToggleLogs.Content = "Hide Logs"; // Update button text to indicate the next action
+                ToggleLogs.Content = "Hide Logs";
             }
         }
 
-
-        // Update the Game Rules Display TextBlock
         private void UpdateGameRulesDisplay()
         {
             if (_gameMaster != null && _gameMaster._gameRules.Rules.Any())
@@ -172,6 +180,41 @@ namespace GGOverlay
             {
                 GameRulesTextBlock.Text = "No Game Rules Loaded";
             }
+        }
+
+        // Update the Player Info Display TextBlock
+        private void UpdatePlayerInfoDisplay()
+        {
+            if (_gameMaster != null && _gameMaster._players.Any())
+            {
+                var playersText = string.Join("\n", _gameMaster._players.Select(p =>
+                    $"{p.Name}: Drink Modifier = {p.DrinkModifier}"));
+
+                PlayerInfoTextBlock.Text = playersText;
+            }
+            else if (_gameClient != null && _gameClient._players.Any())
+            {
+                var playersText = string.Join("\n", _gameClient._players.Select(p =>
+                    $"{p.Name}: Drink Modifier = {p.DrinkModifier}"));
+
+                PlayerInfoTextBlock.Text = playersText;
+            }
+            else
+            {
+                PlayerInfoTextBlock.Text = "No Player Info Loaded";
+            }
+        }
+
+        private void UpdateUIElements()
+        {
+            UpdatePlayerInfoDisplay();
+            UpdateGameRulesDisplay();
+        }
+
+        private void EditPlayer_Click(object sender, RoutedEventArgs e)
+        {
+            // Open a player edit dialog or handle player editing logic here
+            MessageBox.Show("Edit Player button clicked!");
         }
     }
 }

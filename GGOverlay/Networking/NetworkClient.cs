@@ -76,7 +76,7 @@ namespace Networking
                     // Append the message terminator before sending
                     string terminatedMessage = message + MessageTerminator;
                     await _writer.WriteAsync(terminatedMessage).ConfigureAwait(false);
-                    OnLog?.Invoke($"Sent message: {message}");
+                    //OnLog?.Invoke($"Sent message: {message}");
                 }
             }
             catch (Exception ex)
@@ -111,7 +111,7 @@ namespace Networking
 
                                 // Trigger the OnMessageReceived event
                                 OnMessageReceived?.Invoke(completeMessage);
-                                OnLog?.Invoke($"Received message: {completeMessage}");
+                                //OnLog?.Invoke($"Received message: {completeMessage}");
 
                                 // Clear the buffer for the next message
                                 messageBuffer.Clear();

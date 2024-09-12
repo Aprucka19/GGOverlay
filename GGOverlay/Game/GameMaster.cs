@@ -12,7 +12,10 @@ namespace GGOverlay.Game
         private NetworkServer _networkServer;
 
         // Player information
-        private List<PlayerInfo> _players;
+        public List<PlayerInfo> _players;
+
+        // Local Player
+        public PlayerInfo _localPlayer;
 
         // Game rules
         public GameRules _gameRules;
@@ -26,6 +29,9 @@ namespace GGOverlay.Game
             _networkServer = new NetworkServer();
             _players = new List<PlayerInfo>();
             _gameRules = new GameRules();
+            _localPlayer = new PlayerInfo();
+            _localPlayer.Name = "HostPlaceholderName";
+            _localPlayer.DrinkModifier = 1;
 
             // Setup logging for network server
             _networkServer.OnLog += LogMessage;
