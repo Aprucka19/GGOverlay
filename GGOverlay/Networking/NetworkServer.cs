@@ -17,6 +17,7 @@ namespace Networking
 
         public event Action<string, TcpClient> OnMessageReceived;
         public event Action<TcpClient> OnClientConnected;
+        public event Action<TcpClient> OnClientDisconnected; // New event for client disconnections
         public event Action<string> OnLog;
 
         // Define a message terminator
@@ -40,7 +41,6 @@ namespace Networking
                         break;
                     }
 
-                    
                     OnLog?.Invoke($"Client connected: {client.Client?.RemoteEndPoint}");
                     _ = HandleClientAsync(client, _cancellationTokenSource.Token);
                 }
@@ -89,7 +89,6 @@ namespace Networking
 
                                 // Trigger the OnMessageReceived event
                                 OnMessageReceived?.Invoke(completeMessage, client);
-                                //OnLog?.Invoke($"Received message from {client.Client?.RemoteEndPoint}: {completeMessage}");
 
                                 // Clear the buffer for the next message
                                 messageBuffer.Clear();
@@ -114,6 +113,7 @@ namespace Networking
                 if (client?.Client != null)
                 {
                     OnLog?.Invoke($"Client disconnected: {client.Client.RemoteEndPoint}");
+                    OnClientDisconnected?.Invoke(client); // Trigger the OnClientDisconnected event
                 }
                 client?.Close();
             }
@@ -137,7 +137,6 @@ namespace Networking
 
         public async Task BroadcastMessageAsync(string message)
         {
-            //OnLog?.Invoke($"Broadcasting message: {message}");
             foreach (var writer in _clients.Values)
             {
                 try
@@ -154,7 +153,6 @@ namespace Networking
 
         public async Task BroadcastMessageToAllExceptOneAsync(string message, TcpClient excludedClient)
         {
-            //OnLog?.Invoke($"Broadcasting message to all except {excludedClient.Client?.RemoteEndPoint}: {message}");
             foreach (var kvp in _clients)
             {
                 if (kvp.Key != excludedClient)
@@ -180,7 +178,6 @@ namespace Networking
                 {
                     // Append the message terminator before sending
                     await writer.WriteAsync(message + MessageTerminator).ConfigureAwait(false);
-                    //OnLog?.Invoke($"Sent message to {client.Client?.RemoteEndPoint}: {message}");
                 }
                 catch (Exception ex)
                 {

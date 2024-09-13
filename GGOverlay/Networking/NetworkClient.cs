@@ -117,6 +117,13 @@ namespace Networking
                                 messageBuffer.Clear();
                             }
                         }
+
+                        // If read returns 0, the server has closed the connection
+                        if (read == 0)
+                        {
+                            OnLog?.Invoke("Server has closed the connection.");
+                            break;
+                        }
                     }
                     catch (IOException ioEx) when (cancellationToken.IsCancellationRequested)
                     {
@@ -161,6 +168,7 @@ namespace Networking
                 }
             }
         }
+
 
         public void Disconnect()
         {

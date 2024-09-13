@@ -4,32 +4,32 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Windows.Threading; // Required for Dispatcher
 using Networking;
+using Newtonsoft.Json;
 
 namespace GGOverlay.Game
 {
-    public class GameClient
+    public class GameClient : IGameInterface
     {
         // NetworkClient object for connecting to the game
         private NetworkClient _networkClient;
 
         // Local player information
-        public PlayerInfo _localPlayer;
+        public PlayerInfo _localPlayer { get; set; }
 
         // List of all players, including the local player
-        public List<PlayerInfo> _players;
+        public List<PlayerInfo> _players { get; set; }
 
-        public GameRules _gameRules;
+        public GameRules _gameRules { get; set; }
 
         public event Action<string> OnLog;
-        public event Action OnDisconnectedGameClient;
+        public event Action OnDisconnect;
         public event Action UIUpdate;
 
         // Constructor initializes the objects
         public GameClient()
         {
             _networkClient = new NetworkClient();
-            _players = new List<PlayerInfo>();
-            _gameRules = new GameRules();
+            _gameRules = new GameRules();  
 
             // Setup logging for network client
             _networkClient.OnLog += LogMessage;
@@ -40,29 +40,22 @@ namespace GGOverlay.Game
         }
 
         // Set the local player information
-        public void SetLocalPlayer(PlayerInfo player)
+        public async void EditPlayer(string name, double drinkModifier)
         {
-            _localPlayer = player;
-            AddPlayer(player); // Add local player to the player list
-            LogMessage($"Local player set: {player.Name}");
+            _localPlayer = new PlayerInfo(name, drinkModifier);
+            UIUpdate?.Invoke();
+            await SendMessageAsync("PLAYERUPDATE:" + _localPlayer.Send());
         }
 
-        // Add a player to the game
-        public void AddPlayer(PlayerInfo player)
+        //Empty SetGameRules
+        public async Task SetGameRules(string filepath)
         {
-            if (player != null && !_players.Exists(p => p.Name == player.Name))
-            {
-                _players.Add(player);
-                LogMessage($"Player added: {player.Name}");
-            }
-            else
-            {
-                LogMessage($"Player {player?.Name} is already in the game.");
-            }
+            return;
         }
+
 
         // Join a game by connecting to a server at the given IP
-        public async Task<bool> JoinGame(string ipAddress, int port)
+        public async Task Start(int port,string ipAddress)
         {
             if (_networkClient != null)
             {
@@ -70,7 +63,7 @@ namespace GGOverlay.Game
                 {
                     await _networkClient.ConnectAsync(ipAddress, port, 5); // 5 seconds timeout
                     LogMessage("Joined game successfully.");
-                    return true;
+
                 }
                 catch (TimeoutException ex)
                 {
@@ -85,11 +78,10 @@ namespace GGOverlay.Game
             {
                 LogMessage("Error: Client object is null.");
             }
-            return false;
         }
 
         // Send a message to the server
-        public async Task SendMessageAsync(string message)
+        private async Task SendMessageAsync(string message)
         {
             if (_networkClient != null && _networkClient.IsConnected)
             {
@@ -119,6 +111,29 @@ namespace GGOverlay.Game
                     UIUpdate?.Invoke();
                 });
             }
+            // Check if the message is a player list update
+            else if (message.StartsWith("PlayerListUpdate:"))
+            {
+                // Extract the serialized player list from the message
+                string serializedPlayerList = message.Substring("PlayerListUpdate:".Length);
+
+                try
+                {
+                    // Deserialize the player list from the received JSON string
+                    _players = JsonConvert.DeserializeObject<List<PlayerInfo>>(serializedPlayerList) ?? new List<PlayerInfo>();
+                    LogMessage("Player list updated successfully.");
+
+                    // Safely invoke UI updates on the main thread
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        UIUpdate?.Invoke();
+                    });
+                }
+                catch (Exception ex)
+                {
+                    LogMessage($"Error updating player list: {ex.Message}");
+                }
+            }
         }
 
         // Handle client disconnection
@@ -127,9 +142,9 @@ namespace GGOverlay.Game
             LogMessage("Disconnected from server.");
 
             // Safely invoke disconnection on the main thread
-            Dispatcher.CurrentDispatcher.Invoke(() =>
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                OnDisconnectedGameClient?.Invoke();
+                OnDisconnect?.Invoke();
             });
         }
 
@@ -140,7 +155,7 @@ namespace GGOverlay.Game
         }
 
         // Disconnect from the server
-        public void Disconnect()
+        public void Stop()
         {
             _networkClient.Disconnect();
             LogMessage("Client disconnected.");

@@ -9,8 +9,7 @@ namespace GGOverlay
 {
     public partial class MainWindow : Window
     {
-        private GameMaster _gameMaster;
-        private GameClient _gameClient;
+        private IGameInterface _game; // Unified interface for both hosting and joining
 
         public MainWindow()
         {
@@ -19,24 +18,15 @@ namespace GGOverlay
 
         private async void HostButton_Click(object sender, RoutedEventArgs e)
         {
-            _gameMaster = new GameMaster();
-            _gameMaster.OnLog += LogMessage;
-            _gameMaster.UIUpdate += UpdateUIElements;
-
-            HostButton.IsEnabled = false;
-            JoinButton.IsEnabled = false;
-            DisconnectButton.IsEnabled = true;
-            IpTextBox.Visibility = Visibility.Collapsed;
-            SetRules.Visibility = Visibility.Visible;
-            PlayerInfoSection.Visibility = Visibility.Visible;
-            EditPlayerButton.Visibility = Visibility.Visible;
-            GameRulesTextBlock.Visibility = Visibility.Visible;
-            UpdatePlayerInfoDisplay();
-            UpdateGameRulesDisplay();
-
+            _game = new GameMaster(); // Create an instance of GameMaster
+            SubscribeToGameEvents();
+            
             try
             {
-                await _gameMaster.HostGame(25565); // Arbitrary port, can be adjusted
+                ShowLobbyUI();
+                UpdateUIElements();
+                SetRules.Visibility = Visibility.Visible; // Show the Set Rules button for the host
+                await _game.Start(25565); // Start hosting the game
             }
             catch (Exception ex)
             {
@@ -47,51 +37,70 @@ namespace GGOverlay
 
         private async void JoinButton_Click(object sender, RoutedEventArgs e)
         {
-            _gameClient = new GameClient();
-            _gameClient.OnLog += LogMessage;
-            _gameClient.OnDisconnectedGameClient += OnClientDisconnected;
-            _gameClient.UIUpdate += UpdateUIElements;
-
-            HostButton.IsEnabled = false;
-            JoinButton.IsEnabled = false;
-            DisconnectButton.IsEnabled = true;
-            IpTextBox.Visibility = Visibility.Collapsed;
-            PlayerInfoSection.Visibility = Visibility.Visible;
-            EditPlayerButton.Visibility = Visibility.Visible;
-            GameRulesTextBlock.Visibility = Visibility.Visible;
-            UpdatePlayerInfoDisplay();
-            UpdateGameRulesDisplay();
+            _game = new GameClient(); // Create an instance of GameClient
+            SubscribeToGameEvents();
+            _game.OnDisconnect += Disconnect;
+            
 
             string ipAddress = IpTextBox.Text;
 
-            bool success = await _gameClient.JoinGame(ipAddress, 25565);
-            if (!success)
+            try
             {
+                await _game.Start(25565, ipAddress); // Start joining the game
+                ShowLobbyUI();
+              
+            }
+            catch (Exception ex)
+            {
+                LogMessage($"Error joining game: {ex.Message}");
                 ResetUIState();
             }
         }
 
+        private void SubscribeToGameEvents()
+        {
+            _game.OnLog += LogMessage;
+            _game.UIUpdate += UpdateUIElements;
+        }
+
         private void ResetUIState()
         {
-            HostButton.IsEnabled = true;
-            JoinButton.IsEnabled = true;
-            DisconnectButton.IsEnabled = false;
+            HostButton.Visibility = Visibility.Visible;
+            JoinButton.Visibility = Visibility.Visible;
             IpTextBox.Visibility = Visibility.Visible;
             PlayerInfoSection.Visibility = Visibility.Collapsed;
             EditPlayerButton.Visibility = Visibility.Collapsed;
-            GameRulesTextBlock.Visibility = Visibility.Collapsed;
+            GameRulesSection.Visibility = Visibility.Collapsed;
+            SetRules.Visibility = Visibility.Collapsed;
+            DisconnectButton.Visibility = Visibility.Collapsed;
+        }
+
+        private void ShowLobbyUI()
+        {
+            // Hide connection-related elements
+            HostButton.Visibility = Visibility.Collapsed;
+            JoinButton.Visibility = Visibility.Collapsed;
+            IpTextBox.Visibility = Visibility.Collapsed;
+
+            // Show gameplay-related elements
+            DisconnectButton.Visibility = Visibility.Visible;
+            PlayerInfoSection.Visibility = Visibility.Visible;
+            EditPlayerButton.Visibility = Visibility.Visible;
+            GameRulesSection.Visibility = Visibility.Visible;
+            DisconnectButton.IsEnabled = true;
         }
 
         private void DisconnectButton_Click(object sender, RoutedEventArgs e)
         {
-            ResetUIState();
+            
             Disconnect();
         }
 
         private void Disconnect()
         {
-            _gameMaster?.StopServer();
-            _gameClient?.Disconnect();
+            ResetUIState();
+            _game?.Stop();
+            _game = null;
             LogMessage("Disconnected.");
         }
 
@@ -104,35 +113,21 @@ namespace GGOverlay
             });
         }
 
-        private void OnClientDisconnected()
-        {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                LogMessage("Server Closed.");
-                ResetUIState();
-            });
-        }
-
         private async void SetRules_Click(object sender, RoutedEventArgs e)
         {
-            // Open a file dialog to allow the user to select the rules file
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
                 Title = "Select Game Rules File",
                 Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*"
             };
 
-            // Show the file dialog and check if the user selected a file
             if (openFileDialog.ShowDialog() == true)
             {
                 string filepath = openFileDialog.FileName;
                 try
                 {
-                    // Set the game rules from the selected file
-                    await _gameMaster.SetGameRules(filepath);
+                    await _game.SetGameRules(filepath);
                     LogMessage("Game rules set from file.");
-
-                    // Update the Game Rules display
                     UpdateGameRulesDisplay();
                 }
                 catch (Exception ex)
@@ -162,16 +157,9 @@ namespace GGOverlay
 
         private void UpdateGameRulesDisplay()
         {
-            if (_gameMaster != null && _gameMaster._gameRules.Rules.Any())
+            if (_game != null && _game._gameRules.Rules.Any())
             {
-                var rulesText = string.Join("\n", _gameMaster._gameRules.Rules.Select(r =>
-                    $"{(r.IsGroupPunishment ? "Group" : "Individual")} Punishment: {r.RuleDescription} - {r.PunishmentDescription} ({r.PunishmentQuantity})"));
-
-                GameRulesTextBlock.Text = rulesText;
-            }
-            else if (_gameClient != null && _gameClient._gameRules.Rules.Any())
-            {
-                var rulesText = string.Join("\n", _gameClient._gameRules.Rules.Select(r =>
+                var rulesText = string.Join("\n", _game._gameRules.Rules.Select(r =>
                     $"{(r.IsGroupPunishment ? "Group" : "Individual")} Punishment: {r.RuleDescription} - {r.PunishmentDescription} ({r.PunishmentQuantity})"));
 
                 GameRulesTextBlock.Text = rulesText;
@@ -182,28 +170,23 @@ namespace GGOverlay
             }
         }
 
-        // Update the Player Info Display TextBlock
         private void UpdatePlayerInfoDisplay()
         {
-            if (_gameMaster != null && _gameMaster._players.Any())
+            if (_game != null && _game._players != null && _game._players.Any())
             {
-                var playersText = string.Join("\n", _gameMaster._players.Select(p =>
-                    $"{p.Name}: Drink Modifier = {p.DrinkModifier}"));
+                // Filter out any null player objects before creating the display text
+                var playersText = string.Join("\n", _game._players
+                    .Where(p => p != null) // Exclude null players
+                    .Select(p => $"{p.Name}: Drink Modifier = {p.DrinkModifier}"));
 
-                PlayerInfoTextBlock.Text = playersText;
-            }
-            else if (_gameClient != null && _gameClient._players.Any())
-            {
-                var playersText = string.Join("\n", _gameClient._players.Select(p =>
-                    $"{p.Name}: Drink Modifier = {p.DrinkModifier}"));
-
-                PlayerInfoTextBlock.Text = playersText;
+                PlayerInfoTextBlock.Text = string.IsNullOrEmpty(playersText) ? "No Player Info Loaded" : playersText;
             }
             else
             {
                 PlayerInfoTextBlock.Text = "No Player Info Loaded";
             }
         }
+
 
         private void UpdateUIElements()
         {
@@ -213,8 +196,11 @@ namespace GGOverlay
 
         private void EditPlayer_Click(object sender, RoutedEventArgs e)
         {
-            // Open a player edit dialog or handle player editing logic here
-            MessageBox.Show("Edit Player button clicked!");
+            var dialog = new EditPlayerDialog();
+            if (dialog.ShowDialog() == true)
+            {
+                _game.EditPlayer(dialog.PlayerName, dialog.DrinkModifier);
+            }
         }
     }
 }

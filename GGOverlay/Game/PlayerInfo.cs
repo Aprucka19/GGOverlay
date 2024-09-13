@@ -71,6 +71,40 @@ namespace GGOverlay.Game
             }
         }
 
+        // Method to serialize the player info into a string
+        public string Send()
+        {
+            try
+            {
+                // Serialize the player info to a JSON string
+                string serializedPlayer = JsonConvert.SerializeObject(this, Formatting.Indented);
+                OnLog?.Invoke("Player information serialized successfully.");
+                return serializedPlayer;
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"Error serializing player information: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        // Method to deserialize the string into player info and set the properties
+        public void Receive(string serializedPlayer)
+        {
+            try
+            {
+                // Deserialize the string into a PlayerInfo object
+                PlayerInfo player = JsonConvert.DeserializeObject<PlayerInfo>(serializedPlayer) ?? new PlayerInfo();
+                Name = player.Name;
+                DrinkModifier = player.DrinkModifier;
+                OnLog?.Invoke("Player information deserialized successfully.");
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"Error deserializing player information: {ex.Message}");
+            }
+        }
+
         // Override ToString to provide a readable representation of the PlayerInfo object
         public override string ToString()
         {
