@@ -68,7 +68,8 @@ namespace GGOverlay
             HostButton.Visibility = Visibility.Visible;
             JoinButton.Visibility = Visibility.Visible;
             IpTextBox.Visibility = Visibility.Visible;
-            PlayerInfoSection.Visibility = Visibility.Collapsed;
+            YouSection.Visibility = Visibility.Collapsed;
+            LobbySection.Visibility = Visibility.Collapsed;
             EditPlayerButton.Visibility = Visibility.Collapsed;
             GameRulesSection.Visibility = Visibility.Collapsed;
             SetRules.Visibility = Visibility.Collapsed;
@@ -84,7 +85,8 @@ namespace GGOverlay
 
             // Show gameplay-related elements
             DisconnectButton.Visibility = Visibility.Visible;
-            PlayerInfoSection.Visibility = Visibility.Visible;
+            YouSection.Visibility = Visibility.Visible;
+            LobbySection.Visibility = Visibility.Visible;
             EditPlayerButton.Visibility = Visibility.Visible;
             GameRulesSection.Visibility = Visibility.Visible;
             DisconnectButton.IsEnabled = true;
@@ -172,26 +174,56 @@ namespace GGOverlay
 
         private void UpdatePlayerInfoDisplay()
         {
-            if (_game != null && _game._players != null && _game._players.Any())
+            // Update "You" section with local player information
+            if (_game != null && _game._localPlayer != null)
             {
-                // Filter out any null player objects before creating the display text
-                var playersText = string.Join("\n", _game._players
-                    .Where(p => p != null) // Exclude null players
-                    .Select(p => $"{p.Name}: Drink Modifier = {p.DrinkModifier}"));
-
-                PlayerInfoTextBlock.Text = string.IsNullOrEmpty(playersText) ? "No Player Info Loaded" : playersText;
+                LocalPlayerTextBlock.Text = $"{_game._localPlayer.Name}: Drink Modifier = {_game._localPlayer.DrinkModifier}";
             }
             else
             {
-                PlayerInfoTextBlock.Text = "No Player Info Loaded";
+                LocalPlayerTextBlock.Text = "Click Edit Player";
+            }
+
+            // Update "Lobby" section with other players, excluding the local player
+            if (_game != null && _game._players != null && _game._players.Any())
+            {
+                // Ensure _localPlayer is not displayed in the Lobby section by comparing properties explicitly
+                var lobbyPlayersText = string.Join("\n", _game._players
+                    .Where(p => p != null && !IsLocalPlayer(p)) // Use a method to robustly exclude _localPlayer
+                    .Select(p => $"{p.Name}: Drink Modifier = {p.DrinkModifier}"));
+
+                LobbyPlayersTextBlock.Text = string.IsNullOrEmpty(lobbyPlayersText) ? "No Players in Lobby" : lobbyPlayersText;
+            }
+            else
+            {
+                LobbyPlayersTextBlock.Text = "No Players in Lobby";
             }
         }
 
+        // Helper method to check if the player is the local player
+        private bool IsLocalPlayer(PlayerInfo player)
+        {
+            return _game != null && _game._localPlayer != null &&
+                   player.Name == _game._localPlayer.Name &&
+                   Math.Abs(player.DrinkModifier - _game._localPlayer.DrinkModifier) < 0.0001; // Use epsilon comparison for double values
+        }
 
         private void UpdateUIElements()
         {
             UpdatePlayerInfoDisplay();
             UpdateGameRulesDisplay();
+
+            // Show or hide sections based on whether a game is active
+            if (_game != null)
+            {
+                YouSection.Visibility = Visibility.Visible;
+                LobbySection.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                YouSection.Visibility = Visibility.Collapsed;
+                LobbySection.Visibility = Visibility.Collapsed;
+            }
         }
 
         private void EditPlayer_Click(object sender, RoutedEventArgs e)

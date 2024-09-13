@@ -18,10 +18,20 @@
             <TextBox Name="IpTextBox" Width="150" Text="127.0.0.1" Margin="0,0,10,0" />
         </StackPanel>
 
-        <!-- Player Info Section -->
-        <StackPanel Margin="0,0,0,10" Visibility="Collapsed" Name="PlayerInfoSection">
-            <TextBlock Name="PlayerInfoTextBlock"
-                       Text="No Player Info Loaded"
+        <!-- You Section -->
+        <StackPanel Margin="0,0,0,10" Visibility="Collapsed" Name="YouSection">
+            <TextBlock Text="You:" FontWeight="Bold" Margin="0,0,0,5"/>
+            <TextBlock Name="LocalPlayerTextBlock"
+                       Text="Click Edit Player"
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Top" />
+        </StackPanel>
+
+        <!-- Lobby Section -->
+        <StackPanel Margin="0,0,0,10" Visibility="Collapsed" Name="LobbySection">
+            <TextBlock Text="Lobby:" FontWeight="Bold" Margin="0,0,0,5"/>
+            <TextBlock Name="LobbyPlayersTextBlock"
+                       Text="No Players in Lobby"
                        TextWrapping="Wrap"
                        VerticalAlignment="Top" />
         </StackPanel>
