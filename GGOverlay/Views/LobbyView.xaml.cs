@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace GGOverlay
 {
@@ -18,9 +19,20 @@ namespace GGOverlay
             _mainWindow = mainWindow;
             _game = game;
 
+            // Set visibility of SetRules button based on whether hosting or joining
+            if (_game is GameMaster)
+            {
+                SetRules.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                SetRules.Visibility = Visibility.Collapsed;
+            }
+
             SubscribeToGameEvents();
             UpdateUIElements();
         }
+
 
         private void SubscribeToGameEvents()
         {
@@ -96,43 +108,210 @@ namespace GGOverlay
         {
             if (_game != null && _game._gameRules.Rules.Any())
             {
-                var rulesText = string.Join("\n", _game._gameRules.Rules.Select(r =>
-                    $"{(r.IsGroupPunishment ? "Group" : "Individual")} Punishment: {r.RuleDescription} - {r.PunishmentDescription} ({r.PunishmentQuantity})"));
+                GameRulesSection.Children.Clear(); // Clear existing rules
 
-                GameRulesTextBlock.Text = rulesText;
+                // Iterate through each rule and format it with alternating colors
+                for (int i = 0; i < _game._gameRules.Rules.Count; i++)
+                {
+                    var rule = _game._gameRules.Rules[i];
+                    var formattedRule = $"{i + 1}. {rule.RuleDescription}";
+
+                    // Create a TextBlock for each rule
+                    var ruleTextBlock = new TextBlock
+                    {
+                        Text = formattedRule,
+                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(5),
+                        Padding = new Thickness(10),
+                        Background = new SolidColorBrush(i % 2 == 0 ? Color.FromRgb(68, 68, 68) : Color.FromRgb(85, 85, 85)), // Alternating colors
+                        Foreground = Brushes.White,
+                        FontFamily = new FontFamily("Comic Sans"),
+                        FontSize = 14,
+                        ToolTip = new ToolTip
+                        {
+                            Content = rule.GetPunishmentDescription(), // Use the formatted punishment description
+                            Background = Brushes.Gray,
+                            Foreground = Brushes.White,
+                            FontFamily = new FontFamily("Comic Sans"),
+                            FontSize = 12,
+                            Padding = new Thickness(5)
+                        }
+                    };
+
+                    // Add the TextBlock to the GameRulesSection
+                    GameRulesSection.Children.Add(ruleTextBlock);
+                }
             }
             else
             {
-                GameRulesTextBlock.Text = "No Game Rules Loaded";
+                GameRulesSection.Children.Clear();
+                var noRulesTextBlock = new TextBlock
+                {
+                    Text = "No Game Rules Loaded",
+                    Foreground = Brushes.White,
+                    FontFamily = new FontFamily("Comic Sans"),
+                    FontSize = 16,
+                    Margin = new Thickness(5),
+                    Padding = new Thickness(10),
+                    Background = new SolidColorBrush(Color.FromRgb(68, 68, 68))
+                };
+                GameRulesSection.Children.Add(noRulesTextBlock);
             }
         }
 
+
+
+
         private void UpdatePlayerInfoDisplay()
         {
-            // Update "You" section with local player information
+            // Clear the current player display
+            LobbyPlayersPanel.Children.Clear();
+
+            // Always display a box for the local player
             if (_game != null && _game._localPlayer != null)
             {
-                LocalPlayerTextBlock.Text = $"{_game._localPlayer.Name}: Drink Modifier = {_game._localPlayer.DrinkModifier}";
+                //LocalPlayerTextBlock.Text = $"{_game._localPlayer.Name}: Drink Modifier = {_game._localPlayer.DrinkModifier}";
+
+                // Create the local player box with distinct styling
+                var localPlayerBox = CreatePlayerBox(_game._localPlayer, isLocal: true);
+                LobbyPlayersPanel.Children.Add(localPlayerBox);
             }
             else
             {
-                LocalPlayerTextBlock.Text = "Click Edit Player";
+                // Display the default box if the local player is not set
+                //LocalPlayerTextBlock.Text = "Click Edit Player";
+
+                var defaultLocalPlayerBox = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(85, 85, 85)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(90, 90, 90)),
+                    BorderThickness = new Thickness(1),
+                    Margin = new Thickness(5),
+                    Padding = new Thickness(10),
+                    CornerRadius = new CornerRadius(5),
+                    Width = 150,
+                    Height = 80
+                };
+
+                var defaultTextBlock = new TextBlock
+                {
+                    Text = "Click Edit Player",
+                    Foreground = Brushes.White,
+                    FontFamily = new FontFamily("Segoe Script"),
+                    FontSize = 16,
+                    TextWrapping = TextWrapping.Wrap,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                defaultLocalPlayerBox.Child = defaultTextBlock;
+                LobbyPlayersPanel.Children.Add(defaultLocalPlayerBox);
             }
 
             // Update "Lobby" section with other players, excluding the local player
             if (_game != null && _game._players != null && _game._players.Any())
             {
-                // Ensure _localPlayer is not displayed in the Lobby section by comparing properties explicitly
-                var lobbyPlayersText = string.Join("\n", _game._players
-                    .Where(p => p != null && !IsLocalPlayer(p)) // Use a method to robustly exclude _localPlayer
-                    .Select(p => $"{p.Name}: Drink Modifier = {p.DrinkModifier}"));
-
-                LobbyPlayersTextBlock.Text = string.IsNullOrEmpty(lobbyPlayersText) ? "No Players in Lobby" : lobbyPlayersText;
+                foreach (var player in _game._players)
+                {
+                    // Skip the local player to avoid duplication
+                    if (player != null && !IsLocalPlayer(player))
+                    {
+                        var playerBox = CreatePlayerBox(player, isLocal: false);
+                        LobbyPlayersPanel.Children.Add(playerBox);
+                    }
+                }
             }
             else
             {
-                LobbyPlayersTextBlock.Text = "No Players in Lobby";
+                // If no other players are present, do nothing additional; the local player box will still be shown
             }
+        }
+
+        private Border CreatePlayerBox(PlayerInfo player, bool isLocal)
+        {
+            // Set background colors based on whether the player is local or not
+            var backgroundColor = isLocal ? Color.FromRgb(85, 85, 85) : Color.FromRgb(68, 68, 68);
+            var border = new Border
+            {
+                Background = new SolidColorBrush(backgroundColor),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(90, 90, 90)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(5),
+                Padding = new Thickness(10),
+                CornerRadius = new CornerRadius(5),
+                Width = 150, // Fixed width for consistent layout
+                Height = 80  // Fixed height for consistent layout
+            };
+
+            // Display player name and drink modifier in a stack
+            var stackPanel = new StackPanel
+            {
+                Orientation = Orientation.Vertical
+            };
+
+            var nameTextBlock = new TextBlock
+            {
+                Text = player.Name,
+                Foreground = Brushes.White,
+                FontFamily = new FontFamily("Segoe Script"),
+                FontSize = 16,
+                TextWrapping = TextWrapping.Wrap,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            // Convert drink modifier to a fraction format
+            var modifierTextBlock = new TextBlock
+            {
+                Text = ConvertToFraction(player.DrinkModifier), // Display modifier as a fraction
+                Foreground = Brushes.White,
+                FontFamily = new FontFamily("Segoe Script"),
+                FontSize = 14,
+                TextWrapping = TextWrapping.Wrap,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            stackPanel.Children.Add(nameTextBlock);
+            stackPanel.Children.Add(modifierTextBlock);
+            border.Child = stackPanel;
+
+            return border;
+        }
+
+
+        // Helper method to convert a double to a fraction string
+        // Helper method to convert a double to a fraction string
+        private string ConvertToFraction(double value)
+        {
+            // Check for the special case where the value is exactly 1
+            if (Math.Abs(value - 1) < 1.0E-6)
+            {
+                return "1";
+            }
+
+            // Define tolerance for precision
+            double tolerance = 1.0E-6;
+            double numerator = value;
+            double denominator = 1;
+            double gcd;
+
+            // Iteratively adjust numerator and denominator until the value is approximately the same as input
+            while (Math.Abs(numerator % 1) > tolerance)
+            {
+                numerator *= 10;
+                denominator *= 10;
+            }
+
+            // Find the greatest common divisor to simplify the fraction
+            gcd = GCD((int)numerator, (int)denominator);
+
+            // Return fraction string representation
+            return $"{(int)numerator / gcd}/{(int)denominator / gcd}";
+        }
+
+        // Helper method to calculate the Greatest Common Divisor (GCD)
+        private int GCD(int a, int b)
+        {
+            return b == 0 ? a : GCD(b, a % b);
         }
 
         // Helper method to check if the player is the local player

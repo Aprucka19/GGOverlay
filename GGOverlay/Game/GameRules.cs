@@ -92,6 +92,41 @@ namespace GGOverlay.Game
             }
         }
 
+
+        // Method to display a specific rule or all rules
+        public string DisplayRules(int? ruleNumber = null)
+        {
+            // Check if ruleNumber is provided and within valid range
+            if (ruleNumber.HasValue)
+            {
+                int index = ruleNumber.Value - 1; // Convert to zero-based index
+                if (index >= 0 && index < Rules.Count)
+                {
+                    return FormatRule(Rules[index]);
+                }
+                else
+                {
+                    return "Invalid rule number.";
+                }
+            }
+            else
+            {
+                // Display all rules
+                List<string> formattedRules = new List<string>();
+                for (int i = 0; i < Rules.Count; i++)
+                {
+                    formattedRules.Add($"{i + 1}. {FormatRule(Rules[i])}");
+                }
+                return string.Join(Environment.NewLine, formattedRules);
+            }
+        }
+
+        // Helper method to format a rule with placeholders replaced
+        private string FormatRule(Rule rule)
+        {
+            return rule.PunishmentDescription.Replace("{0}", "Player").Replace("{1}", rule.PunishmentQuantity.ToString());
+        }
+
     }
 
     public class Rule
@@ -106,16 +141,65 @@ namespace GGOverlay.Game
         public string PunishmentDescription { get; set; }
 
         // Quantity value for the punishment
-        public double PunishmentQuantity { get; set; }
+        public int PunishmentQuantity { get; set; }
 
         // Constructor to initialize the rule with given values
-        public Rule(bool isGroupPunishment, string ruleDescription, string punishmentDescription, double punishmentQuantity)
+        public Rule(bool isGroupPunishment, string ruleDescription, string punishmentDescription, int punishmentQuantity)
         {
             IsGroupPunishment = isGroupPunishment;
             RuleDescription = ruleDescription;
             PunishmentDescription = punishmentDescription;
             PunishmentQuantity = punishmentQuantity;
         }
+
+        // Method to get the formatted punishment description
+        public string GetPunishmentDescription(string name = "{Player}")
+        {
+            // Replace the placeholders with provided name and formatted drink description
+            string playerName = string.IsNullOrEmpty(name) ? "{Player}" : name;
+            string drinkDescription = FormatDrinkDescription(PunishmentQuantity);
+
+            return PunishmentDescription.Replace("{0}", playerName).Replace("{1}", drinkDescription);
+        }
+
+        private string FormatDrinkDescription(int quantity)
+        {
+            string drinkText;
+
+            if (quantity == 1)
+            {
+                drinkText = "1 sip";
+            }
+            else if (quantity > 1 && quantity < 20)
+            {
+                drinkText = $"{quantity} sips";
+            }
+            else if (quantity == 20)
+            {
+                drinkText = "a full drink";
+            }
+            else
+            {
+                // Calculate full drinks and remaining sips
+                int fullDrinks = quantity / 20;
+                int sips = quantity % 20;
+
+                string fullDrinksText = fullDrinks == 1 ? "1 full drink" : $"{fullDrinks} full drinks";
+                string sipsText = sips == 1 ? "1 sip" : $"{sips} sips";
+
+                if (sips == 0)
+                {
+                    drinkText = fullDrinksText;
+                }
+                else
+                {
+                    drinkText = $"{fullDrinksText} and {sipsText}";
+                }
+            }
+
+            return drinkText;
+        }
+
 
         // Method to display rule details
         public override string ToString()
@@ -124,4 +208,6 @@ namespace GGOverlay.Game
             return $"{punishmentType} Punishment: {PunishmentDescription}, Quantity: {PunishmentQuantity}";
         }
     }
+
+
 }

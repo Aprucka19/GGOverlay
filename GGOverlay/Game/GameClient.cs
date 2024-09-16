@@ -29,7 +29,7 @@ namespace GGOverlay.Game
         public GameClient()
         {
             _networkClient = new NetworkClient();
-            _gameRules = new GameRules();  
+            _gameRules = new GameRules();
 
             // Setup logging for network client
             _networkClient.OnLog += LogMessage;
@@ -47,15 +47,14 @@ namespace GGOverlay.Game
             await SendMessageAsync("PLAYERUPDATE:" + _localPlayer.Send());
         }
 
-        //Empty SetGameRules
+        // Empty SetGameRules
         public async Task SetGameRules(string filepath)
         {
             return;
         }
 
-
         // Join a game by connecting to a server at the given IP
-        public async Task Start(int port,string ipAddress)
+        public async Task Start(int port, string ipAddress)
         {
             if (_networkClient != null)
             {
@@ -63,20 +62,22 @@ namespace GGOverlay.Game
                 {
                     await _networkClient.ConnectAsync(ipAddress, port, 5); // 5 seconds timeout
                     LogMessage("Joined game successfully.");
-
                 }
                 catch (TimeoutException ex)
                 {
                     LogMessage($"Connection timed out: {ex.Message}");
+                    throw; // Re-throw exception
                 }
                 catch (Exception ex)
                 {
                     LogMessage($"Error connecting to server: {ex.Message}");
+                    throw; // Re-throw exception
                 }
             }
             else
             {
                 LogMessage("Error: Client object is null.");
+                throw new Exception("Client object is null.");
             }
         }
 

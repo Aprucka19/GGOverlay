@@ -19,53 +19,79 @@ namespace GGOverlay
         private async void HostButton_Click(object sender, RoutedEventArgs e)
         {
             _game = new GameMaster(); // Create an instance of GameMaster
-            //SubscribeToGameEvents();
+
+            // Clear previous error messages
+            ErrorMessageTextBlock.Text = "";
+
+            // Show loading indicator and connecting text
+            LoadingIndicator.Visibility = Visibility.Visible;
+            ConnectingTextBlock.Visibility = Visibility.Visible;
+
+            // Disable buttons
+            HostButton.IsEnabled = false;
+            JoinButton.IsEnabled = false;
 
             try
             {
                 _mainWindow.ShowLobbyView(_game);
                 await _game.Start(25565); // Start hosting the game
+                
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error hosting game: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                // Display error message
+                ErrorMessageTextBlock.Text = $"Error hosting game: {ex.Message}";
+            }
+            finally
+            {
+                // Hide loading indicator and connecting text
+                LoadingIndicator.Visibility = Visibility.Collapsed;
+                ConnectingTextBlock.Visibility = Visibility.Collapsed;
+
+                // Re-enable buttons
+                HostButton.IsEnabled = true;
+                JoinButton.IsEnabled = true;
             }
         }
 
         private async void JoinButton_Click(object sender, RoutedEventArgs e)
         {
             _game = new GameClient(); // Create an instance of GameClient
-            //SubscribeToGameEvents();
 
             string ipAddress = IpTextBox.Text;
 
+            // Clear previous error messages
+            ErrorMessageTextBlock.Text = "";
+
+            // Show loading indicator and connecting text
+            LoadingIndicator.Visibility = Visibility.Visible;
+            ConnectingTextBlock.Visibility = Visibility.Visible;
+
+            // Disable buttons
+            HostButton.IsEnabled = false;
+            JoinButton.IsEnabled = false;
+
             try
             {
-                _mainWindow.ShowLobbyView(_game);
                 await _game.Start(25565, ipAddress); // Start joining the game
-                
+                _mainWindow.ShowLobbyView(_game);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error joining game: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                // Display error message
+                ErrorMessageTextBlock.Text = $"Error joining game: {ex.Message}";
+                // Remain on the launch screen
+            }
+            finally
+            {
+                // Hide loading indicator and connecting text
+                LoadingIndicator.Visibility = Visibility.Collapsed;
+                ConnectingTextBlock.Visibility = Visibility.Collapsed;
+
+                // Re-enable buttons
+                HostButton.IsEnabled = true;
+                JoinButton.IsEnabled = true;
             }
         }
-
-        //private void SubscribeToGameEvents()
-        //{
-        //    _game.OnLog += LogMessage;
-        //    _game.UIUpdate += UpdateUIElements;
-        //    _game.OnDisconnect += _mainWindow.ShowLaunchView;
-        //}
-
-        //private void LogMessage(string message)
-        //{
-        //    // Implement logging if necessary
-        //}
-
-        //private void UpdateUIElements()
-        //{
-        //    // Implement UI updates if necessary
-        //}
     }
 }

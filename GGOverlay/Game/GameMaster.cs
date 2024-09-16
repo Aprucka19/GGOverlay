@@ -75,6 +75,7 @@ namespace GGOverlay.Game
                 catch (Exception ex)
                 {
                     LogMessage($"Error hosting the game: {ex.Message}");
+                    throw;
                 }
             }
             else

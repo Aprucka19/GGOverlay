@@ -8,7 +8,7 @@
         <Style TargetType="Button">
             <Setter Property="Foreground" Value="#E6E6E6"/>
             <Setter Property="Background" Value="#444444"/>
-            <Setter Property="FontFamily" Value="Segoe Script"/>
+            <Setter Property="FontFamily" Value="Comic Sans"/>
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="BorderBrush" Value="#5A5A5A"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -27,8 +27,8 @@
         <!-- Style for text blocks and labels -->
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="#E6E6E6"/>
-            <Setter Property="FontFamily" Value="Segoe Script"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontFamily" Value="Comic Sans"/>
+            <Setter Property="FontSize" Value="18"/>
             <Setter Property="Margin" Value="0,5,0,5"/>
         </Style>
     </UserControl.Resources>
@@ -41,31 +41,21 @@
                 <Button Name="SetRules" Content="Set Rules" Click="SetRules_Click"/>
             </StackPanel>
 
-            <!-- You Section -->
-            <StackPanel Margin="0,0,0,10" Name="YouSection">
-                <TextBlock Text="You:" FontWeight="Bold"/>
-                <TextBlock Name="LocalPlayerTextBlock"
-                           Text="Click Edit Player"
-                           TextWrapping="Wrap"
-                           VerticalAlignment="Top"/>
-            </StackPanel>
 
             <!-- Lobby Section -->
             <StackPanel Margin="0,0,0,10" Name="LobbySection">
                 <TextBlock Text="Lobby:" FontWeight="Bold"/>
-                <TextBlock Name="LobbyPlayersTextBlock"
-                           Text="No Players in Lobby"
-                           TextWrapping="Wrap"
-                           VerticalAlignment="Top"/>
+                <WrapPanel Name="LobbyPlayersPanel" Orientation="Horizontal" Margin="0,5,0,0">
+                    <!-- Player boxes will be dynamically added here -->
+                </WrapPanel>
             </StackPanel>
 
+
             <!-- Game Rules Display -->
-            <StackPanel Margin="0,0,0,10" Name="GameRulesSection">
-                <TextBlock Name="GameRulesTextBlock"
-                           Text="No Game Rules Loaded"
-                           TextWrapping="Wrap"
-                           VerticalAlignment="Top"/>
+            <StackPanel Margin="0,0,0,10" Name="GameRulesSection" Background="#2D2D30">
+                <!-- The rules will be dynamically added here -->
             </StackPanel>
+
 
             <!-- Log Output Section -->
             <StackPanel Orientation="Vertical">
