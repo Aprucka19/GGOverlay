@@ -1,0 +1,87 @@
+﻿<UserControl x:Class="GGOverlay.LobbyView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="Auto" Width="Auto">
+    <UserControl.Resources>
+        <!-- Styles can be defined here -->
+        <!-- Style for buttons -->
+        <Style TargetType="Button">
+            <Setter Property="Foreground" Value="#E6E6E6"/>
+            <Setter Property="Background" Value="#444444"/>
+            <Setter Property="FontFamily" Value="Segoe Script"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="BorderBrush" Value="#5A5A5A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="10"/>
+            <Setter Property="Height" Value="50"/>
+            <Setter Property="Width" Value="200"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <!-- Trigger for changing background and text color when the button is hovered -->
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#555555"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <!-- Style for text blocks and labels -->
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#E6E6E6"/>
+            <Setter Property="FontFamily" Value="Segoe Script"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Margin" Value="0,5,0,5"/>
+        </Style>
+    </UserControl.Resources>
+    <Grid>
+        <StackPanel Margin="10,0,10,10" VerticalAlignment="Top">
+            <!-- Connection Buttons -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                <Button Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click"/>
+                <Button Name="EditPlayerButton" Content="Edit Player" Click="EditPlayer_Click"/>
+                <Button Name="SetRules" Content="Set Rules" Click="SetRules_Click"/>
+            </StackPanel>
+
+            <!-- You Section -->
+            <StackPanel Margin="0,0,0,10" Name="YouSection">
+                <TextBlock Text="You:" FontWeight="Bold"/>
+                <TextBlock Name="LocalPlayerTextBlock"
+                           Text="Click Edit Player"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Top"/>
+            </StackPanel>
+
+            <!-- Lobby Section -->
+            <StackPanel Margin="0,0,0,10" Name="LobbySection">
+                <TextBlock Text="Lobby:" FontWeight="Bold"/>
+                <TextBlock Name="LobbyPlayersTextBlock"
+                           Text="No Players in Lobby"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Top"/>
+            </StackPanel>
+
+            <!-- Game Rules Display -->
+            <StackPanel Margin="0,0,0,10" Name="GameRulesSection">
+                <TextBlock Name="GameRulesTextBlock"
+                           Text="No Game Rules Loaded"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Top"/>
+            </StackPanel>
+
+            <!-- Log Output Section -->
+            <StackPanel Orientation="Vertical">
+                <Button Name="ToggleLogs" Content="Show Logs" Click="ToggleLogs_Click"/>
+                <ScrollViewer Visibility="Collapsed" Name="LogScrollViewer" Margin="0,0,0,10" VerticalScrollBarVisibility="Visible" Height="Auto">
+                    <TextBox Name="LogTextBox"
+                             TextWrapping="Wrap"
+                             VerticalAlignment="Top"
+                             IsReadOnly="True"
+                             IsReadOnlyCaretVisible="False"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             VerticalScrollBarVisibility="Hidden"
+                             AcceptsReturn="True"/>
+                </ScrollViewer>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>
