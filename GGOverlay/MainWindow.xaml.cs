@@ -2,8 +2,14 @@
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using GGOverlay.Game;
 using Microsoft.Win32;
+
+using System;
+using System.Windows;
+using System.Windows.Input;
+
 
 namespace GGOverlay
 {
@@ -226,13 +232,34 @@ namespace GGOverlay
             }
         }
 
+        // Event handler to allow dragging the window
+        private void TopBar_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            // Allows dragging the window around
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                this.DragMove();
+            }
+        }
+
+        private void ExitButton_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Shutdown();
+        }
+
+
         private void EditPlayer_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new EditPlayerDialog();
+            // Check if a local player exists and pass current values to the dialog
+            var currentName = _game._localPlayer?.Name ?? string.Empty;
+            var currentModifier = _game._localPlayer?.DrinkModifier ?? 1.0;
+
+            var dialog = new EditPlayerDialog(currentName, currentModifier);
             if (dialog.ShowDialog() == true)
             {
                 _game.EditPlayer(dialog.PlayerName, dialog.DrinkModifier);
             }
         }
+
     }
 }
