@@ -211,6 +211,23 @@ namespace GGOverlay.Game
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
 
+        public override bool Equals(object obj)
+        {
+            if (obj is Rule otherRule)
+            {
+                return this.IsGroupPunishment == otherRule.IsGroupPunishment &&
+                       this.RuleDescription == otherRule.RuleDescription &&
+                       this.PunishmentDescription == otherRule.PunishmentDescription &&
+                       this.PunishmentQuantity == otherRule.PunishmentQuantity;
+            }
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(IsGroupPunishment, RuleDescription, PunishmentDescription, PunishmentQuantity);
+        }
+
         // Method to get the formatted punishment description
         public string GetPunishmentDescription(string name = "{Player}")
         {

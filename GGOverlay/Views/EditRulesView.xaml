@@ -7,7 +7,7 @@
         <Style TargetType="Button">
             <Setter Property="Foreground" Value="#E6E6E6"/>
             <Setter Property="Background" Value="#444444"/>
-            <Setter Property="FontFamily" Value="Segoe Script"/>
+            <Setter Property="FontFamily" Value="Comic Sans"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="BorderBrush" Value="#5A5A5A"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -21,12 +21,18 @@
                     <Setter Property="Background" Value="#555555"/>
                     <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
+                <!-- New Trigger for when the button is disabled -->
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Foreground" Value="#444444"/>
+                    <Setter Property="Background" Value="#333333"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
             </Style.Triggers>
         </Style>
         <Style TargetType="TextBox">
             <Setter Property="Foreground" Value="#E6E6E6"/>
             <Setter Property="Background" Value="#444444"/>
-            <Setter Property="FontFamily" Value="Segoe Script"/>
+            <Setter Property="FontFamily" Value="Comic Sans"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="BorderBrush" Value="#5A5A5A"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -35,7 +41,7 @@
         </Style>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="#E6E6E6"/>
-            <Setter Property="FontFamily" Value="Segoe Script"/>
+            <Setter Property="FontFamily" Value="Comic Sans"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Margin" Value="5"/>
         </Style>
@@ -44,67 +50,105 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <!-- Top Buttons -->
+            <RowDefinition Height="Auto"/>
+            <!-- Filename Display -->
+            <RowDefinition Height="Auto"/>
+            <!-- Example Section -->
             <RowDefinition Height="*"/>
             <!-- Rules List -->
+            <RowDefinition Height="Auto"/>
+            <!-- Bottom Buttons -->
         </Grid.RowDefinitions>
 
         <!-- Top Buttons -->
         <StackPanel Orientation="Horizontal" Grid.Row="0" HorizontalAlignment="Right">
             <Button Content="Load Rules" Click="LoadRules_Click" Width="100"/>
-            <Button Content="Save" Click="SaveButton_Click" Width="100"/>
-            <Button Content="Cancel" Click="CancelButton_Click" Width="100"/>
+            <Button x:Name="CreateNewRulesButton" Content="Create New Rules" Click="CreateNewRules_Click" Width="150" IsEnabled="False"/>
+            <Button Content="?" Click="ToggleExampleSection_Click" Width="30"/>
+        </StackPanel>
+
+        <!-- Filename Display -->
+        <TextBlock Grid.Row="1" Name="FileNameTextBlock" Text="Unnamed Rule Set" FontWeight="Bold" FontSize="16" Margin="5"/>
+
+        <!-- Example Section -->
+        <StackPanel Grid.Row="2" Margin="5" Background="#333333" Name="ExampleSection" Visibility="Collapsed">
+            <TextBlock Text="Example:" FontWeight="Bold" FontSize="16"/>
+            <Grid Margin="5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <!-- Column Headers -->
+                <TextBlock Text="Type" Grid.Column="0" FontWeight="Bold" Margin="5,5,5,5"/>
+                <TextBlock Text="Rule Description" Grid.Column="1" FontWeight="Bold" Margin="70,5,5,5"/>
+                <TextBlock Text="Punishment Description" Grid.Column="2" FontWeight="Bold" Margin="40,5,5,5"/>
+                <TextBlock Text="Quantity" Grid.Column="3" FontWeight="Bold" Margin="5,5,45,5"/>
+            </Grid>
+            <Grid Margin="5" Background="#555555">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <!-- Example Inputs -->
+                <TextBlock Grid.Column="0" Text="Individual" Margin="5" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="When you draw a red card, take a drink" Margin="45,5,5,5"/>
+                <TextBlock Grid.Column="2" Text=" {0} drew a red card and drinks {1}" Margin="20,5,40,5"/>
+                <TextBlock Grid.Column="3" Text="1" Margin="5,5,85,5"/>
+            </Grid>
+            <Grid Margin="5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="2" Text="Will display as: 'Player drew a red card and drinks 1 sip.'" Margin="10,5,5,5"/>
+            </Grid>
+            <Grid Margin="5" Background="#555555">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <!-- Example Inputs -->
+                <TextBlock Grid.Column="0" Text="Group      " Margin="5" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="When you complete a mission, everyone drinks." Margin="45,5,5,5"/>
+                <TextBlock Grid.Column="2" Text="Everyone drinks {0}" Margin="25,5,40,5"/>
+                <TextBlock Grid.Column="3" Text="25" Margin="5,5,80,5"/>
+            </Grid>
+            <Grid Margin="5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="2" Text="Will display as: 'Everyone drinks 1 beer and 5 sips'" Margin="10,5,5,5"/>
+            </Grid>
         </StackPanel>
 
         <!-- Rules List -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
             <StackPanel>
-
-                <!-- Header Row -->
-                <Grid Margin="5">
+                <!-- Column Headers -->
+                <Grid Margin="5" Background="#444444">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
-                        <!-- Punishment Type -->
                         <ColumnDefinition Width="*"/>
-                        <!-- Rule Description -->
                         <ColumnDefinition Width="*"/>
-                        <!-- Punishment Description -->
                         <ColumnDefinition Width="Auto"/>
-                        <!-- Punishment Quantity -->
                         <ColumnDefinition Width="Auto"/>
-                        <!-- Minus Button -->
                     </Grid.ColumnDefinitions>
-
-                    <TextBlock Text="Punishment Type" Grid.Column="0" FontWeight="Bold" Margin="5"/>
-                    <TextBlock Text="Rule Description" Grid.Column="1" FontWeight="Bold" Margin="5"/>
-                    <TextBlock Text="Punishment Description" Grid.Column="2" FontWeight="Bold" Margin="5"/>
-                    <TextBlock Text="Quantity" Grid.Column="3" FontWeight="Bold" Margin="5"/>
+                    <TextBlock Text="Type" Grid.Column="0" FontWeight="Bold" Margin="10,5,5,5"/>
+                    <TextBlock Text="Rule Description" Grid.Column="1" FontWeight="Bold" Margin="70,5,5,5"/>
+                    <TextBlock Text="Punishment Description" Grid.Column="2" FontWeight="Bold" Margin="40,5,5,5"/>
+                    <TextBlock Text="Quantity" Grid.Column="3" FontWeight="Bold" Margin="5,5,45,5"/>
                 </Grid>
-
-                <!-- Example Rule Row -->
-                <Grid Margin="5">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <!-- Punishment Type -->
-                        <ColumnDefinition Width="*"/>
-                        <!-- Rule Description -->
-                        <ColumnDefinition Width="*"/>
-                        <!-- Punishment Description -->
-                        <ColumnDefinition Width="Auto"/>
-                        <!-- Punishment Quantity -->
-                        <ColumnDefinition Width="Auto"/>
-                        <!-- Minus Button -->
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Punishment Type -->
-                    <TextBlock Grid.Column="0" Text="Individual" Margin="5" VerticalAlignment="Center"/>
-                    <!-- Rule Description -->
-                    <TextBlock Text="When you draw a red card, take a drink" Grid.Column="1" Margin="5"/>
-                    <!-- Punishment Description -->
-                    <TextBlock Text=" {0} drew a red card and drinks {1}" Grid.Column="2" Margin="5"/>
-                    <!-- Punishment Quantity -->
-                    <TextBlock Text="1" Grid.Column="3" Margin="5"/>
-                </Grid>
-
                 <!-- Rules Items -->
                 <ItemsControl Name="RulesItemsControl">
                     <ItemsControl.ItemTemplate>
@@ -112,42 +156,37 @@
                             <Grid Margin="5">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
-                                    <!-- Punishment Type -->
                                     <ColumnDefinition Width="*"/>
-                                    <!-- Rule Description -->
                                     <ColumnDefinition Width="*"/>
-                                    <!-- Punishment Description -->
                                     <ColumnDefinition Width="Auto"/>
-                                    <!-- Punishment Quantity -->
                                     <ColumnDefinition Width="Auto"/>
-                                    <!-- Minus Button -->
                                 </Grid.ColumnDefinitions>
-
                                 <!-- IsGroupPunishment ComboBox -->
                                 <ComboBox Grid.Column="0" SelectedValue="{Binding IsGroupPunishment, Mode=TwoWay}" SelectedValuePath="Tag" Margin="5" Width="100">
                                     <ComboBoxItem Content="Individual" Tag="False"/>
                                     <ComboBoxItem Content="Group" Tag="True"/>
                                 </ComboBox>
-
                                 <!-- Rule Description -->
                                 <TextBox Grid.Column="1" Text="{Binding RuleDescription, Mode=TwoWay}" Margin="5"/>
-
                                 <!-- Punishment Description -->
                                 <TextBox Grid.Column="2" Text="{Binding PunishmentDescription, Mode=TwoWay}" Margin="5"/>
-
                                 <!-- Punishment Quantity -->
                                 <TextBox Grid.Column="3" Text="{Binding PunishmentQuantity, Mode=TwoWay}" Margin="5" Width="60"/>
-
                                 <!-- Minus Button -->
                                 <Button Content="-" Grid.Column="4" Click="DeleteRule_Click" Width="30" Height="30" Margin="5" DataContext="{Binding}"/>
                             </Grid>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-
                 <!-- Plus Button to Add New Rule -->
                 <Button Content="+" Click="AddRule_Click" Width="30" Height="30" HorizontalAlignment="Center" Margin="5"/>
             </StackPanel>
         </ScrollViewer>
+
+        <!-- Bottom Buttons -->
+        <StackPanel Orientation="Horizontal" Grid.Row="4" HorizontalAlignment="Right">
+            <Button Content="Save" Click="SaveButton_Click" Width="100"/>
+            <Button Content="Cancel" Click="CancelButton_Click" Width="100"/>
+        </StackPanel>
     </Grid>
 </UserControl>

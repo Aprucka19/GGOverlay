@@ -22,12 +22,10 @@ namespace GGOverlay
             // Set visibility of buttons based on whether hosting or joining
             if (_game is GameMaster)
             {
-                SetRules.Visibility = Visibility.Visible;
                 EditRulesButton.Visibility = Visibility.Visible;
             }
             else
             {
-                SetRules.Visibility = Visibility.Collapsed;
                 EditRulesButton.Visibility = Visibility.Collapsed;
             }
 
@@ -39,7 +37,6 @@ namespace GGOverlay
 
         private void SubscribeToGameEvents()
         {
-            _game.OnLog += LogMessage;
             _game.UIUpdate += UpdateUIElements;
             _game.OnDisconnect += Disconnect;
         }
@@ -56,42 +53,7 @@ namespace GGOverlay
             Disconnect();
         }
 
-        private void LogMessage(string message)
-        {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                LogTextBox.AppendText($"{message}\n");
-                LogScrollViewer.ScrollToEnd();
-            });
-        }
 
-        private async void SetRules_Click(object sender, RoutedEventArgs e)
-        {
-            OpenFileDialog openFileDialog = new OpenFileDialog
-            {
-                Title = "Select Game Rules File",
-                Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*"
-            };
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                string filepath = openFileDialog.FileName;
-                try
-                {
-                    await _game.SetGameRules(filepath);
-                    LogMessage("Game rules set from file.");
-                    UpdateGameRulesDisplay();
-                }
-                catch (Exception ex)
-                {
-                    LogMessage($"Error setting game rules: {ex.Message}");
-                }
-            }
-            else
-            {
-                LogMessage("No file selected.");
-            }
-        }
 
         private void EditRules_Click(object sender, RoutedEventArgs e)
         {
@@ -99,19 +61,7 @@ namespace GGOverlay
         }
 
 
-        private void ToggleLogs_Click(object sender, RoutedEventArgs e)
-        {
-            if (LogScrollViewer.Visibility == Visibility.Visible)
-            {
-                LogScrollViewer.Visibility = Visibility.Collapsed;
-                ToggleLogs.Content = "Show Logs";
-            }
-            else
-            {
-                LogScrollViewer.Visibility = Visibility.Visible;
-                ToggleLogs.Content = "Hide Logs";
-            }
-        }
+
 
         private void UpdateGameRulesDisplay()
         {

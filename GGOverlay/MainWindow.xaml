@@ -1,14 +1,34 @@
 ﻿<Window x:Class="GGOverlay.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:GGOverlay"
         Title="GGOverlay" Height="600" Width="1200"
         Background="#2D2D30" Foreground="#E6E6E6" FontFamily="Comic Sans"
         WindowStyle="None" ResizeMode="CanResizeWithGrip" AllowsTransparency="True">
+
+    <!-- Define the command binding -->
+    <Window.CommandBindings>
+        <CommandBinding Command="local:MainWindow.ToggleLogsCommand" Executed="ToggleLogsCommand_Executed"/>
+    </Window.CommandBindings>
+
+    <!-- Define the input binding for Ctrl + L -->
+    <Window.InputBindings>
+        <KeyBinding Command="local:MainWindow.ToggleLogsCommand" Gesture="Ctrl+L"/>
+    </Window.InputBindings>
     <Window.Resources>
         <!-- Common styles can be placed here -->
     </Window.Resources>
     <Border BorderBrush="#5A5A5A" BorderThickness="1">
         <Grid Background="#2D2D30">
+            <!-- Define Row Definitions -->
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <!-- Top Bar -->
+                <RowDefinition Height="*"/>
+                <!-- Content Area -->
+                <RowDefinition Height="Auto"/>
+                <!-- Logs -->
+            </Grid.RowDefinitions>
             <!-- Custom Top Bar -->
             <Grid Background="#3B3B3D" Height="40" VerticalAlignment="Top" MouseDown="TopBar_MouseDown">
                 <Grid.ColumnDefinitions>
@@ -37,7 +57,22 @@
                 </Button>
             </Grid>
             <!-- Content Area -->
-            <ContentControl Name="ContentArea" Margin="0,50,0,0"/>
+            <ContentControl Name="ContentArea" Grid.Row="1"/>
+
+            <!-- Log Output Section -->
+            <Grid Grid.Row="2" Visibility="Collapsed" Name="LogGrid" Height="200">
+                <TextBox Name="LogTextBox"
+             TextWrapping="Wrap"
+             VerticalAlignment="Top"
+             IsReadOnly="True"
+             Background="Black"
+             Foreground="White"
+             BorderThickness="0"
+             AcceptsReturn="True"
+             VerticalScrollBarVisibility="Auto"
+             HorizontalScrollBarVisibility="Disabled"/>
+            </Grid>
+
         </Grid>
     </Border>
 </Window>

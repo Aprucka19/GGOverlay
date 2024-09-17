@@ -3,6 +3,18 @@
     "IsGroupPunishment": true,
     "RuleDescription": "TEst",
     "PunishmentDescription": "3333",
-    "PunishmentQuantity": 0
+    "PunishmentQuantity": 33
+  },
+  {
+    "IsGroupPunishment": false,
+    "RuleDescription": "Rule 3",
+    "PunishmentDescription": "{0} player eats {1}",
+    "PunishmentQuantity": 4
+  },
+  {
+    "IsGroupPunishment": false,
+    "RuleDescription": "New Rule 4",
+    "PunishmentDescription": "{0} player chuggs {1}",
+    "PunishmentQuantity": 2
   }
 ]

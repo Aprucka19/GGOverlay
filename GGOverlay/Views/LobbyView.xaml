@@ -38,7 +38,6 @@
             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                 <Button Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click"/>
                 <Button Name="EditPlayerButton" Content="Edit Player" Click="EditPlayer_Click"/>
-                <Button Name="SetRules" Content="Set Rules" Click="SetRules_Click"/>
                 <Button Name="EditRulesButton" Content="Edit Rules" Click="EditRules_Click"/>
 
             </StackPanel>
@@ -58,22 +57,6 @@
                 <!-- The rules will be dynamically added here -->
             </StackPanel>
 
-
-            <!-- Log Output Section -->
-            <StackPanel Orientation="Vertical">
-                <Button Name="ToggleLogs" Content="Show Logs" Click="ToggleLogs_Click"/>
-                <ScrollViewer Visibility="Collapsed" Name="LogScrollViewer" Margin="0,0,0,10" VerticalScrollBarVisibility="Visible" Height="Auto">
-                    <TextBox Name="LogTextBox"
-                             TextWrapping="Wrap"
-                             VerticalAlignment="Top"
-                             IsReadOnly="True"
-                             IsReadOnlyCaretVisible="False"
-                             Background="Transparent"
-                             BorderThickness="0"
-                             VerticalScrollBarVisibility="Hidden"
-                             AcceptsReturn="True"/>
-                </ScrollViewer>
-            </StackPanel>
         </StackPanel>
     </Grid>
 </UserControl>

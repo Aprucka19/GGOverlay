@@ -1,25 +1,20 @@
 ﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using GGOverlay.Game;
-using Microsoft.Win32;
-
-using System;
-using System.Windows;
-using System.Windows.Input;
-
-
-using System.Windows;
-using System.Windows.Input;
 
 namespace GGOverlay
 {
     public partial class MainWindow : Window
     {
+        private IGameInterface _game;
+        private bool _subscribed;
+
+        public static readonly RoutedCommand ToggleLogsCommand = new RoutedCommand();
+
         public MainWindow()
         {
+            _subscribed = false;
             InitializeComponent();
             ShowLaunchView();
         }
@@ -34,6 +29,20 @@ namespace GGOverlay
         {
             this.Title = "GGOverlay - Lobby";
             ContentArea.Content = new LobbyView(this, game);
+
+            // Store the game reference
+            _game = game;
+
+
+            if (!_subscribed)
+            {
+                _subscribed = true;
+                // Subscribe to the game's OnLog event
+                _game.OnLog += LogMessage;
+
+                // Optionally, handle the game's OnDisconnect event
+                _game.OnDisconnect += Game_OnDisconnect;
+            }
         }
 
         public void ShowEditRulesView(IGameInterface game)
@@ -41,7 +50,6 @@ namespace GGOverlay
             this.Title = "GGOverlay - Edit Rules";
             ContentArea.Content = new EditRulesView(this, game);
         }
-
 
         public void ShowEditPlayerView(IGameInterface game)
         {
@@ -62,7 +70,44 @@ namespace GGOverlay
         {
             Application.Current.Shutdown();
         }
+
+        private void LogMessage(string message)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                LogTextBox.AppendText($"{message}\n");
+                LogTextBox.ScrollToEnd();
+            });
+        }
+
+
+        private void ToggleLogsCommand_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            ToggleLogsVisibility();
+        }
+
+        private void ToggleLogsVisibility()
+        {
+            if (LogGrid.Visibility == Visibility.Visible)
+            {
+                LogGrid.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                LogGrid.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void Game_OnDisconnect()
+        {
+            // Unsubscribe from the game's OnLog event when the game disconnects
+            if (_game != null)
+            {
+                _game.OnLog -= LogMessage;
+                _game.OnDisconnect -= Game_OnDisconnect;
+                _game = null;
+                _subscribed = false;
+            }
+        }
     }
 }
-
-
