@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using Newtonsoft.Json;
 
@@ -8,7 +9,10 @@ namespace GGOverlay.Game
     public class GameRules
     {
         // List of Rule objects
-        public List<Rule> Rules { get; private set; }
+        public List<Rule> Rules { get; set; }
+
+        // Path to the source file (if loaded from a file)
+        public string SourceFilePath { get; set; }
 
         // Logging event callback
         public event Action<string> OnLog;
@@ -19,25 +23,6 @@ namespace GGOverlay.Game
             Rules = new List<Rule>();
         }
 
-        // Method to save rules to a JSON file
-        public void SaveToFile(string filePath)
-        {
-            try
-            {
-                // Serialize the list of rules to JSON format using Newtonsoft.Json
-                string json = JsonConvert.SerializeObject(Rules, Formatting.Indented);
-
-                // Write the JSON string to the specified file path
-                File.WriteAllText(filePath, json);
-                OnLog?.Invoke("Rules saved successfully.");
-            }
-            catch (Exception ex)
-            {
-                OnLog?.Invoke($"Error saving rules to file: {ex.Message}");
-            }
-        }
-
-        // Method to load rules from a JSON file
         public void LoadFromFile(string filePath)
         {
             try
@@ -48,11 +33,9 @@ namespace GGOverlay.Game
                     return;
                 }
 
-                // Read the JSON string from the specified file path
                 string json = File.ReadAllText(filePath);
-
-                // Deserialize the JSON string into a list of rules using Newtonsoft.Json
                 Rules = JsonConvert.DeserializeObject<List<Rule>>(json) ?? new List<Rule>();
+                SourceFilePath = filePath;
                 OnLog?.Invoke("Rules loaded successfully.");
             }
             catch (Exception ex)
@@ -60,6 +43,22 @@ namespace GGOverlay.Game
                 OnLog?.Invoke($"Error loading rules from file: {ex.Message}");
             }
         }
+
+        public void SaveToFile(string filePath)
+        {
+            try
+            {
+                string json = JsonConvert.SerializeObject(Rules, Formatting.Indented);
+                File.WriteAllText(filePath, json);
+                SourceFilePath = filePath;
+                OnLog?.Invoke("Rules saved successfully.");
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"Error saving rules to file: {ex.Message}");
+            }
+        }
+
         // Method to serialize the rules into a string
         public string Send()
         {
@@ -129,27 +128,87 @@ namespace GGOverlay.Game
 
     }
 
-    public class Rule
+    public class Rule : INotifyPropertyChanged
     {
-        // Boolean to indicate if the punishment is for a group or individual
-        public bool IsGroupPunishment { get; set; }
+        private bool _isGroupPunishment;
+        private string _ruleDescription;
+        private string _punishmentDescription;
+        private int _punishmentQuantity;
 
-        // Description of the Rule
-        public string RuleDescription { get; set; }
+        public bool IsGroupPunishment
+        {
+            get => _isGroupPunishment;
+            set
+            {
+                if (_isGroupPunishment != value)
+                {
+                    _isGroupPunishment = value;
+                    OnPropertyChanged(nameof(IsGroupPunishment));
+                }
+            }
+        }
 
-        // Description of the punishment
-        public string PunishmentDescription { get; set; }
+        public string RuleDescription
+        {
+            get => _ruleDescription;
+            set
+            {
+                if (_ruleDescription != value)
+                {
+                    _ruleDescription = value;
+                    OnPropertyChanged(nameof(RuleDescription));
+                }
+            }
+        }
 
-        // Quantity value for the punishment
-        public int PunishmentQuantity { get; set; }
+        public string PunishmentDescription
+        {
+            get => _punishmentDescription;
+            set
+            {
+                if (_punishmentDescription != value)
+                {
+                    _punishmentDescription = value;
+                    OnPropertyChanged(nameof(PunishmentDescription));
+                }
+            }
+        }
 
-        // Constructor to initialize the rule with given values
+        public int PunishmentQuantity
+        {
+            get => _punishmentQuantity;
+            set
+            {
+                if (_punishmentQuantity != value)
+                {
+                    _punishmentQuantity = value;
+                    OnPropertyChanged(nameof(PunishmentQuantity));
+                }
+            }
+        }
+
+        public Rule()
+        {
+        }
+
         public Rule(bool isGroupPunishment, string ruleDescription, string punishmentDescription, int punishmentQuantity)
         {
             IsGroupPunishment = isGroupPunishment;
             RuleDescription = ruleDescription;
             PunishmentDescription = punishmentDescription;
             PunishmentQuantity = punishmentQuantity;
+        }
+
+        public Rule Clone()
+        {
+            return new Rule(IsGroupPunishment, RuleDescription, PunishmentDescription, PunishmentQuantity);
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected void OnPropertyChanged(string name)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
 
         // Method to get the formatted punishment description

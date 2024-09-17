@@ -39,6 +39,8 @@
                 <Button Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click"/>
                 <Button Name="EditPlayerButton" Content="Edit Player" Click="EditPlayer_Click"/>
                 <Button Name="SetRules" Content="Set Rules" Click="SetRules_Click"/>
+                <Button Name="EditRulesButton" Content="Edit Rules" Click="EditRules_Click"/>
+
             </StackPanel>
 
 

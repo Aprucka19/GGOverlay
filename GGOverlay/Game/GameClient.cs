@@ -149,6 +149,14 @@ namespace GGOverlay.Game
             });
         }
 
+
+        public void RequestUIUpdate()
+        {
+            UIUpdate?.Invoke();
+        }
+
+
+
         // Log messages to the console or handle through a logger
         private void LogMessage(string message)
         {

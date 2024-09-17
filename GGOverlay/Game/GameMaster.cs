@@ -55,6 +55,16 @@ namespace GGOverlay.Game
             await BroadcastMessageAsync("RULEUPDATE:" + _gameRules.Send());
         }
 
+        // In GameMaster.cs
+        public async void BroadcastGameRules()
+        {
+            if (_gameRules != null)
+            {
+                await BroadcastMessageAsync("RULEUPDATE:" + _gameRules.Send());
+            }
+        }
+
+
         // Set the local player information
         public async void EditPlayer(string name, double drinkModifier)
         {
@@ -186,6 +196,11 @@ namespace GGOverlay.Game
             {
                 LogMessage($"Error sending player list update: {ex.Message}");
             }
+        }
+
+        public void RequestUIUpdate()
+        {
+            UIUpdate?.Invoke();
         }
 
         // Send a message to all clients

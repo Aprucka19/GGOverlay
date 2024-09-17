@@ -19,19 +19,22 @@ namespace GGOverlay
             _mainWindow = mainWindow;
             _game = game;
 
-            // Set visibility of SetRules button based on whether hosting or joining
+            // Set visibility of buttons based on whether hosting or joining
             if (_game is GameMaster)
             {
                 SetRules.Visibility = Visibility.Visible;
+                EditRulesButton.Visibility = Visibility.Visible;
             }
             else
             {
                 SetRules.Visibility = Visibility.Collapsed;
+                EditRulesButton.Visibility = Visibility.Collapsed;
             }
 
             SubscribeToGameEvents();
             UpdateUIElements();
         }
+
 
 
         private void SubscribeToGameEvents()
@@ -89,6 +92,12 @@ namespace GGOverlay
                 LogMessage("No file selected.");
             }
         }
+
+        private void EditRules_Click(object sender, RoutedEventArgs e)
+        {
+            _mainWindow.ShowEditRulesView(_game);
+        }
+
 
         private void ToggleLogs_Click(object sender, RoutedEventArgs e)
         {
