@@ -32,31 +32,37 @@
             <Setter Property="Margin" Value="0,5,0,5"/>
         </Style>
     </UserControl.Resources>
-    <Grid>
-        <StackPanel Margin="10,0,10,10" VerticalAlignment="Top">
+    <Grid Margin="10">
+        <!-- Define the layout rows -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <!-- Connection Buttons -->
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <Button Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click"/>
-                <Button Name="EditPlayerButton" Content="Edit Player" Click="EditPlayer_Click"/>
-                <Button Name="EditRulesButton" Content="Edit Rules" Click="EditRules_Click"/>
-
-            </StackPanel>
-
-
+            <RowDefinition Height="Auto"/>
             <!-- Lobby Section -->
-            <StackPanel Margin="0,0,0,10" Name="LobbySection">
-                <TextBlock Text="Lobby:" FontWeight="Bold"/>
-                <WrapPanel Name="LobbyPlayersPanel" Orientation="Horizontal" Margin="0,5,0,0">
-                    <!-- Player boxes will be dynamically added here -->
-                </WrapPanel>
-            </StackPanel>
-
-
+            <RowDefinition Height="*"/>
             <!-- Game Rules Display -->
+        </Grid.RowDefinitions>
+
+        <!-- Connection Buttons -->
+        <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
+            <Button Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click"/>
+            <Button Name="EditPlayerButton" Content="Edit Player" Click="EditPlayer_Click"/>
+            <Button Name="EditRulesButton" Content="Edit Rules" Click="EditRules_Click"/>
+        </StackPanel>
+
+        <!-- Lobby Section -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,10" Name="LobbySection">
+            <TextBlock Text="Lobby:" FontWeight="Bold"/>
+            <WrapPanel Name="LobbyPlayersPanel" Orientation="Horizontal" Margin="0,5,0,0">
+                <!-- Player boxes will be dynamically added here -->
+            </WrapPanel>
+        </StackPanel>
+
+        <!-- Game Rules Display -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
             <StackPanel Margin="0,0,0,10" Name="GameRulesSection" Background="#2D2D30">
                 <!-- The rules will be dynamically added here -->
             </StackPanel>
-
-        </StackPanel>
+        </ScrollViewer>
     </Grid>
 </UserControl>

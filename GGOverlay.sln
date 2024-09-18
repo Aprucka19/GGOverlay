@@ -5,6 +5,8 @@ VisualStudioVersion = 17.11.35222.181
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GGOverlay", "GGOverlay\GGOverlay.csproj", "{FCB09F1B-4764-4432-9C9D-433F9ED29371}"
 EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "GGOverlayInstaller", "GGOverlayInstaller\GGOverlayInstaller.vdproj", "{F072BD97-89CA-4C80-982C-C503D89194A3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,8 @@ Global
 		{FCB09F1B-4764-4432-9C9D-433F9ED29371}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FCB09F1B-4764-4432-9C9D-433F9ED29371}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FCB09F1B-4764-4432-9C9D-433F9ED29371}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F072BD97-89CA-4C80-982C-C503D89194A3}.Debug|Any CPU.ActiveCfg = Debug
+		{F072BD97-89CA-4C80-982C-C503D89194A3}.Release|Any CPU.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

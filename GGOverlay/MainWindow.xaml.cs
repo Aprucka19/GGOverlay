@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using GGOverlay.Game;
@@ -16,6 +17,7 @@ namespace GGOverlay
         {
             _subscribed = false;
             InitializeComponent();
+            CopyDefaultRulesetsToUserFolder();
             ShowLaunchView();
         }
 
@@ -66,6 +68,24 @@ namespace GGOverlay
             }
         }
 
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.WindowState = WindowState.Minimized;
+        }
+
+        private void MaximizeRestoreButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.WindowState == WindowState.Maximized)
+            {
+                this.WindowState = WindowState.Normal;
+                MaximizeButton.Content = "\u2610"; // Empty square
+            }
+            else
+            {
+                this.WindowState = WindowState.Maximized;
+                MaximizeButton.Content = "\u2752"; // Overlapping squares
+            }
+        }
         private void ExitButton_Click(object sender, RoutedEventArgs e)
         {
             Application.Current.Shutdown();
@@ -107,6 +127,49 @@ namespace GGOverlay
                 _game.OnDisconnect -= Game_OnDisconnect;
                 _game = null;
                 _subscribed = false;
+            }
+        }
+
+        private void CopyDefaultRulesetsToUserFolder()
+        {
+            // Define the user-specific GameRulesets directory
+            string userRulesDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "GGOverlay",
+                "GameRulesets"
+            );
+
+            // Check if the directory exists
+            if (!Directory.Exists(userRulesDirectory))
+            {
+                // Create the directory
+                Directory.CreateDirectory(userRulesDirectory);
+            }
+
+            // Check if there are any ruleset files in the directory
+            if (!Directory.EnumerateFiles(userRulesDirectory, "*.json").Any())
+            {
+                // Copy default rulesets from application directory
+                string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string defaultRulesDirectory = Path.Combine(appDirectory, "DefaultRulesets");
+
+                if (Directory.Exists(defaultRulesDirectory))
+                {
+                    foreach (string filePath in Directory.GetFiles(defaultRulesDirectory, "*.json"))
+                    {
+                        string fileName = Path.GetFileName(filePath);
+                        string destFilePath = Path.Combine(userRulesDirectory, fileName);
+
+                        try
+                        {
+                            File.Copy(filePath, destFilePath, overwrite: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Failed to copy default ruleset '{fileName}': {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                    }
+                }
             }
         }
     }

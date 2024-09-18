@@ -12,6 +12,16 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="DefaultRulesets\BroforceRules.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Assets\" />
+  </ItemGroup>
+
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="start &quot;&quot; &quot;$(TargetPath)&quot;&#xD;&#xA;start &quot;&quot; &quot;$(TargetPath)&quot;" />
   </Target>

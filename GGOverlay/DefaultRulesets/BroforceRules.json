@@ -1,0 +1,44 @@
+[
+  {
+    "IsGroupPunishment": false,
+    "RuleDescription": "Someones Bro appears in a cutscene",
+    "PunishmentDescription": "{0}'s chosen Bro appeared in a cutscene. {0} drinks {1}.",
+    "PunishmentQuantity": 1
+  },
+  {
+    "IsGroupPunishment": true,
+    "RuleDescription": "Everyone drinks on level completion",
+    "PunishmentDescription": "Level completed! Everyone drinks {1}.",
+    "PunishmentQuantity": 1
+  },
+  {
+    "IsGroupPunishment": false,
+    "RuleDescription": "Someone dies to an environmental Hazard",
+    "PunishmentDescription": "{0} died from an environmental hazard and drinks {1}.",
+    "PunishmentQuantity": 4
+  },
+  {
+    "IsGroupPunishment": false,
+    "RuleDescription": "Someone is killed",
+    "PunishmentDescription": "{0} was killed by an enemy and drinks {1}.",
+    "PunishmentQuantity": 2
+  },
+  {
+    "IsGroupPunishment": false,
+    "RuleDescription": "Someone Team-Kills",
+    "PunishmentDescription": "{0} accidentally killed a teammate and drinks {1}.",
+    "PunishmentQuantity": 5
+  },
+  {
+    "IsGroupPunishment": true,
+    "RuleDescription": "Mission Failed",
+    "PunishmentDescription": "Mission failed! Everyone drinks {1}.",
+    "PunishmentQuantity": 5
+  },
+  {
+    "IsGroupPunishment": true,
+    "RuleDescription": "A new Bro is unlocked",
+    "PunishmentDescription": "New Bro unlocked! Everyone drinks {1}.",
+    "PunishmentQuantity": 2
+  }
+]

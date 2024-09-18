@@ -3,6 +3,7 @@ using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -98,26 +99,76 @@ namespace GGOverlay
             _game._gameRules.Rules = _currentRules.Select(r => r.Clone()).ToList();
             _game._gameRules.SourceFilePath = _currentSourceFilePath;
 
+            // Define the user-specific GameRulesets directory
+            string userRulesDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "GGOverlay",
+                "GameRulesets"
+            );
+
+            // Define the application-specific DefaultRulesets directory
+            string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string defaultRulesDirectory = Path.Combine(appDirectory, "DefaultRulesets");
+
+            // Determine the default save directory
+            string defaultSaveDirectory;
+
+            // Use the user directory if it exists
+            if (Directory.Exists(userRulesDirectory))
+            {
+                defaultSaveDirectory = userRulesDirectory;
+            }
+            // Otherwise, use the application directory if it exists
+            else if (Directory.Exists(defaultRulesDirectory))
+            {
+                defaultSaveDirectory = defaultRulesDirectory;
+            }
+            else
+            {
+                // Handle the case where neither directory exists
+                MessageBox.Show("No valid directory found to save the ruleset.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
             // Save rules to file if loaded from a file or prompt to save
             if (!string.IsNullOrEmpty(_game._gameRules.SourceFilePath))
             {
-                _game._gameRules.SaveToFile(_game._gameRules.SourceFilePath);
+                try
+                {
+                    _game._gameRules.SaveToFile(_game._gameRules.SourceFilePath);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to save the ruleset: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
             }
             else
             {
                 SaveFileDialog saveFileDialog = new SaveFileDialog
                 {
                     Title = "Save Game Rules",
-                    Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*"
+                    Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*",
+                    InitialDirectory = defaultSaveDirectory,
+                    FileName = _currentFileName
                 };
 
                 if (saveFileDialog.ShowDialog() == true)
                 {
-                    _currentFileName = System.IO.Path.GetFileName(saveFileDialog.FileName);
+                    _currentFileName = Path.GetFileName(saveFileDialog.FileName);
                     FileNameTextBlock.Text = _currentFileName;
-                    _game._gameRules.SaveToFile(saveFileDialog.FileName);
-                    _game._gameRules.SourceFilePath = saveFileDialog.FileName;
-                    _currentSourceFilePath = saveFileDialog.FileName;
+
+                    try
+                    {
+                        _game._gameRules.SaveToFile(saveFileDialog.FileName);
+                        _game._gameRules.SourceFilePath = saveFileDialog.FileName;
+                        _currentSourceFilePath = saveFileDialog.FileName;
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Failed to save the ruleset: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
                 }
                 else
                 {
@@ -141,17 +192,50 @@ namespace GGOverlay
         }
 
 
+
         private void LoadRules_Click(object sender, RoutedEventArgs e)
         {
+            // Define the user-specific GameRulesets directory
+            string userRulesDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "GGOverlay",
+                "GameRulesets"
+            );
+
+            // Define the application-specific DefaultRulesets directory
+            string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string defaultRulesDirectory = Path.Combine(appDirectory, "DefaultRulesets");
+
+            // Determine the initial directory for the OpenFileDialog
+            string initialDirectory;
+
+            // Use the user directory if it exists and contains files
+            if (Directory.Exists(userRulesDirectory) && Directory.EnumerateFiles(userRulesDirectory, "*.json").Any())
+            {
+                initialDirectory = userRulesDirectory;
+            }
+            // Otherwise, use the application directory if it exists
+            else if (Directory.Exists(defaultRulesDirectory))
+            {
+                initialDirectory = defaultRulesDirectory;
+            }
+            else
+            {
+                // Handle the case where neither directory exists
+                MessageBox.Show("No rulesets were found in the default locations.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
                 Title = "Select Game Rules File",
-                Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*"
+                Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*",
+                InitialDirectory = initialDirectory
             };
 
             if (openFileDialog.ShowDialog() == true)
             {
-                _currentFileName = System.IO.Path.GetFileName(openFileDialog.FileName);
+                _currentFileName = Path.GetFileName(openFileDialog.FileName);
                 FileNameTextBlock.Text = _currentFileName;
 
                 // Load rules from file into a temporary GameRules object
@@ -170,10 +254,9 @@ namespace GGOverlay
 
                 // Enable the Create New Rules button
                 CreateNewRulesButton.IsEnabled = true;
-
-                // Do not update _game._gameRules yet
             }
         }
+
 
 
         private void ToggleExampleSection_Click(object sender, RoutedEventArgs e)

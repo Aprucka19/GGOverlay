@@ -73,32 +73,53 @@ namespace GGOverlay
                 for (int i = 0; i < _game._gameRules.Rules.Count; i++)
                 {
                     var rule = _game._gameRules.Rules[i];
-                    var formattedRule = $"{i + 1}. {rule.RuleDescription}";
+                    var ruleDescription = $"{i + 1}. {rule.RuleDescription}";
+                    var punishmentDescription = rule.GetPunishmentDescription(); // Fill in placeholders
 
-                    // Create a TextBlock for each rule
+                    // Create a Border to hold the StackPanel
+                    var ruleBorder = new Border
+                    {
+                        Margin = new Thickness(5),
+                        Background = new SolidColorBrush(i % 2 == 0 ? Color.FromRgb(68, 68, 68) : Color.FromRgb(85, 85, 85)), // Alternating colors
+                        Padding = new Thickness(10)
+                    };
+
+                    // Create a StackPanel for each rule and punishment
+                    var ruleStackPanel = new StackPanel
+                    {
+                        Orientation = Orientation.Vertical
+                    };
+
+                    // Create TextBlock for the rule description
                     var ruleTextBlock = new TextBlock
                     {
-                        Text = formattedRule,
+                        Text = ruleDescription,
                         TextWrapping = TextWrapping.Wrap,
-                        Margin = new Thickness(5),
-                        Padding = new Thickness(10),
-                        Background = new SolidColorBrush(i % 2 == 0 ? Color.FromRgb(68, 68, 68) : Color.FromRgb(85, 85, 85)), // Alternating colors
+                        Foreground = Brushes.White,
+                        FontFamily = new FontFamily("Comic Sans"),
+                        FontSize = 14
+                    };
+
+                    // Create TextBlock for the punishment description
+                    var punishmentTextBlock = new TextBlock
+                    {
+                        Text = punishmentDescription,
+                        TextWrapping = TextWrapping.Wrap,
                         Foreground = Brushes.White,
                         FontFamily = new FontFamily("Comic Sans"),
                         FontSize = 14,
-                        ToolTip = new ToolTip
-                        {
-                            Content = rule.GetPunishmentDescription(), // Use the formatted punishment description
-                            Background = Brushes.Gray,
-                            Foreground = Brushes.White,
-                            FontFamily = new FontFamily("Comic Sans"),
-                            FontSize = 12,
-                            Padding = new Thickness(5)
-                        }
+                        Margin = new Thickness(0, 5, 0, 0)
                     };
 
-                    // Add the TextBlock to the GameRulesSection
-                    GameRulesSection.Children.Add(ruleTextBlock);
+                    // Add TextBlocks to the StackPanel
+                    ruleStackPanel.Children.Add(ruleTextBlock);
+                    ruleStackPanel.Children.Add(punishmentTextBlock);
+
+                    // Add the StackPanel to the Border
+                    ruleBorder.Child = ruleStackPanel;
+
+                    // Add the Border to the GameRulesSection
+                    GameRulesSection.Children.Add(ruleBorder);
                 }
             }
             else
@@ -117,6 +138,7 @@ namespace GGOverlay
                 GameRulesSection.Children.Add(noRulesTextBlock);
             }
         }
+
 
 
 

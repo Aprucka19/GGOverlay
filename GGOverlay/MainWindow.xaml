@@ -15,9 +15,62 @@
     <Window.InputBindings>
         <KeyBinding Command="local:MainWindow.ToggleLogsCommand" Gesture="Ctrl+L"/>
     </Window.InputBindings>
+
     <Window.Resources>
-        <!-- Common styles can be placed here -->
+        <!-- Base style for window control buttons -->
+        <Style x:Key="WindowControlButtonBaseStyle" TargetType="Button">
+            <!-- Common setters for the buttons -->
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Background" Value="#5A5A5A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="#4A4A4A"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Minimize button style -->
+        <Style x:Key="MinimizeButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowControlButtonBaseStyle}">
+            <Setter Property="Margin" Value="0,0,5,0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#4CAF50"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Maximize/Restore button style -->
+        <Style x:Key="MaximizeButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowControlButtonBaseStyle}">
+            <Setter Property="Margin" Value="0,0,5,0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2196F3"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Close button style -->
+        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowControlButtonBaseStyle}">
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#D32F2F"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
+
     <Border BorderBrush="#5A5A5A" BorderThickness="1">
         <Grid Background="#2D2D30">
             <!-- Define Row Definitions -->
@@ -29,6 +82,7 @@
                 <RowDefinition Height="Auto"/>
                 <!-- Logs -->
             </Grid.RowDefinitions>
+
             <!-- Custom Top Bar -->
             <Grid Background="#3B3B3D" Height="40" VerticalAlignment="Top" MouseDown="TopBar_MouseDown">
                 <Grid.ColumnDefinitions>
@@ -38,39 +92,36 @@
 
                 <!-- Draggable Area -->
                 <TextBlock Text="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=Title}" 
-           VerticalAlignment="Center" Margin="10,0,0,0" FontWeight="Bold"/>
+                           VerticalAlignment="Center" Margin="10,0,0,0" FontWeight="Bold"/>
 
+                <!-- Window Control Buttons -->
+                <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
+                    <!-- Minimize Button -->
+                    <Button Content="&#x2015;" Style="{StaticResource MinimizeButtonStyle}" Click="MinimizeButton_Click"/>
 
-                <!-- Close Button -->
-                <Button Content="X" Width="40" Height="30" Margin="0,0,10,0" Background="#5A5A5A" Foreground="White" 
-                        FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Right" Click="ExitButton_Click"
-                        BorderBrush="#4A4A4A" BorderThickness="0" Cursor="Hand">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Style.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#D32F2F"/>
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
+                    <!-- Maximize/Restore Button -->
+                    <Button x:Name="MaximizeButton" Content="&#x2610;" Style="{StaticResource MaximizeButtonStyle}" Click="MaximizeRestoreButton_Click"/>
+
+                    <!-- Close Button -->
+                    <Button Content="X" Style="{StaticResource CloseButtonStyle}" Click="ExitButton_Click"/>
+                </StackPanel>
             </Grid>
+
             <!-- Content Area -->
             <ContentControl Name="ContentArea" Grid.Row="1"/>
 
             <!-- Log Output Section -->
             <Grid Grid.Row="2" Visibility="Collapsed" Name="LogGrid" Height="200">
                 <TextBox Name="LogTextBox"
-             TextWrapping="Wrap"
-             VerticalAlignment="Top"
-             IsReadOnly="True"
-             Background="Black"
-             Foreground="White"
-             BorderThickness="0"
-             AcceptsReturn="True"
-             VerticalScrollBarVisibility="Auto"
-             HorizontalScrollBarVisibility="Disabled"/>
+                     TextWrapping="Wrap"
+                     VerticalAlignment="Top"
+                     IsReadOnly="True"
+                     Background="Black"
+                     Foreground="White"
+                     BorderThickness="0"
+                     AcceptsReturn="True"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Disabled"/>
             </Grid>
 
         </Grid>
