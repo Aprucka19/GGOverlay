@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace GGOverlay.Game
@@ -16,6 +17,9 @@ namespace GGOverlay.Game
         List<PlayerInfo> _players { get; set; }
 
         GameRules _gameRules { get; set; }
+
+        // UserData property
+        UserData UserData { get; set; }
 
         // Method to start the game (Host or Join)
         Task Start(int port, string ipAddress = null);

@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Windows;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Threading; // Required for Dispatcher
+using System.Windows;
 using Networking;
 using Newtonsoft.Json;
 
@@ -21,6 +21,9 @@ namespace GGOverlay.Game
 
         public GameRules _gameRules { get; set; }
 
+        // UserData
+        public UserData UserData { get; set; }
+
         public event Action<string> OnLog;
         public event Action OnDisconnect;
         public event Action UIUpdate;
@@ -30,6 +33,16 @@ namespace GGOverlay.Game
         {
             _networkClient = new NetworkClient();
             _gameRules = new GameRules();
+            _players = new List<PlayerInfo>();
+
+            // Load UserData
+            UserData = UserData.Load();
+
+            // If UserData.LocalPlayer is set, assign to _localPlayer
+            if (UserData.LocalPlayer != null)
+            {
+                _localPlayer = UserData.LocalPlayer;
+            }
 
             // Setup logging for network client
             _networkClient.OnLog += LogMessage;
@@ -43,6 +56,8 @@ namespace GGOverlay.Game
         public async void EditPlayer(string name, double drinkModifier)
         {
             _localPlayer = new PlayerInfo(name, drinkModifier);
+            UserData.LocalPlayer = _localPlayer;
+            UserData.Save(); // Save UserData
             UIUpdate?.Invoke();
             await SendMessageAsync("PLAYERUPDATE:" + _localPlayer.Send());
         }
@@ -50,7 +65,8 @@ namespace GGOverlay.Game
         // Empty SetGameRules
         public async Task SetGameRules(string filepath)
         {
-            return;
+            // Clients do not set game rules; handled by the server
+            await Task.CompletedTask;
         }
 
         // Join a game by connecting to a server at the given IP
@@ -149,13 +165,10 @@ namespace GGOverlay.Game
             });
         }
 
-
         public void RequestUIUpdate()
         {
             UIUpdate?.Invoke();
         }
-
-
 
         // Log messages to the console or handle through a logger
         private void LogMessage(string message)
@@ -168,6 +181,7 @@ namespace GGOverlay.Game
         {
             _networkClient.Disconnect();
             LogMessage("Client disconnected.");
+            UserData.Save(); // Save UserData when stopping
         }
     }
 }

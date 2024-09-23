@@ -1,8 +1,12 @@
-﻿using System;
-using System.IO;
+﻿using GGOverlay.Game;
+using Microsoft.Win32;
+using System;
+using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.IO;
 using System.Windows.Input;
-using GGOverlay.Game;
 
 namespace GGOverlay
 {
@@ -34,7 +38,6 @@ namespace GGOverlay
 
             // Store the game reference
             _game = game;
-
 
             if (!_subscribed)
             {
@@ -128,6 +131,9 @@ namespace GGOverlay
                 _game = null;
                 _subscribed = false;
             }
+
+            // Optionally, show the launch view again
+            ShowLaunchView();
         }
 
         private void CopyDefaultRulesetsToUserFolder()
@@ -171,6 +177,20 @@ namespace GGOverlay
                     }
                 }
             }
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            if (_game != null)
+            {
+                _game.OnLog -= LogMessage;
+                _game.OnDisconnect -= Game_OnDisconnect;
+                _game = null;
+                _subscribed = false;
+            }
+
+            base.OnClosing(e);
+
         }
     }
 }

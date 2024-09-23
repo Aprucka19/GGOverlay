@@ -75,6 +75,10 @@ namespace GGOverlay
             {
                 await _game.Start(25565, ipAddress); // Start joining the game
                 _mainWindow.ShowLobbyView(_game);
+                if(_game._localPlayer != null)
+                {
+                    _game.EditPlayer(_game._localPlayer.Name, _game._localPlayer.DrinkModifier);
+                }
             }
             catch (Exception ex)
             {

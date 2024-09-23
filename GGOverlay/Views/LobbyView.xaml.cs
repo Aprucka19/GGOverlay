@@ -31,6 +31,18 @@ namespace GGOverlay
 
             SubscribeToGameEvents();
             UpdateUIElements();
+
+
+        }
+
+        private void LaunchOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            // Minimize the Lobby window
+            _mainWindow.WindowState = WindowState.Minimized;
+
+            // Open the Overlay window
+            OverlayWindow overlay = new OverlayWindow(_game);
+            overlay.Show();
         }
 
 
@@ -59,7 +71,6 @@ namespace GGOverlay
         {
             _mainWindow.ShowEditRulesView(_game);
         }
-
 
 
 
@@ -142,7 +153,6 @@ namespace GGOverlay
 
 
 
-
         private void UpdatePlayerInfoDisplay()
         {
             // Clear the current player display
@@ -151,8 +161,6 @@ namespace GGOverlay
             // Always display a box for the local player
             if (_game != null && _game._localPlayer != null)
             {
-                //LocalPlayerTextBlock.Text = $"{_game._localPlayer.Name}: Drink Modifier = {_game._localPlayer.DrinkModifier}";
-
                 // Create the local player box with distinct styling
                 var localPlayerBox = CreatePlayerBox(_game._localPlayer, isLocal: true);
                 LobbyPlayersPanel.Children.Add(localPlayerBox);
@@ -160,8 +168,6 @@ namespace GGOverlay
             else
             {
                 // Display the default box if the local player is not set
-                //LocalPlayerTextBlock.Text = "Click Edit Player";
-
                 var defaultLocalPlayerBox = new Border
                 {
                     Background = new SolidColorBrush(Color.FromRgb(85, 85, 85)),
@@ -243,7 +249,7 @@ namespace GGOverlay
             // Convert drink modifier to a fraction format
             var modifierTextBlock = new TextBlock
             {
-                Text = ConvertToFraction(player.DrinkModifier), // Display modifier as a fraction
+                Text = player.ReturnFraction(), // Display modifier as a fraction
                 Foreground = Brushes.White,
                 FontFamily = new FontFamily("Segoe Script"),
                 FontSize = 14,
@@ -258,42 +264,6 @@ namespace GGOverlay
             return border;
         }
 
-
-        // Helper method to convert a double to a fraction string
-        // Helper method to convert a double to a fraction string
-        private string ConvertToFraction(double value)
-        {
-            // Check for the special case where the value is exactly 1
-            if (Math.Abs(value - 1) < 1.0E-6)
-            {
-                return "1";
-            }
-
-            // Define tolerance for precision
-            double tolerance = 1.0E-6;
-            double numerator = value;
-            double denominator = 1;
-            double gcd;
-
-            // Iteratively adjust numerator and denominator until the value is approximately the same as input
-            while (Math.Abs(numerator % 1) > tolerance)
-            {
-                numerator *= 10;
-                denominator *= 10;
-            }
-
-            // Find the greatest common divisor to simplify the fraction
-            gcd = GCD((int)numerator, (int)denominator);
-
-            // Return fraction string representation
-            return $"{(int)numerator / gcd}/{(int)denominator / gcd}";
-        }
-
-        // Helper method to calculate the Greatest Common Divisor (GCD)
-        private int GCD(int a, int b)
-        {
-            return b == 0 ? a : GCD(b, a % b);
-        }
 
         // Helper method to check if the player is the local player
         private bool IsLocalPlayer(PlayerInfo player)

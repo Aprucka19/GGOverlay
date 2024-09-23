@@ -18,6 +18,7 @@ namespace Networking
         public event Action<string, TcpClient> OnMessageReceived;
         public event Action<TcpClient> OnClientConnected;
         public event Action<TcpClient> OnClientDisconnected; // New event for client disconnections
+        public event Action OnDisconnected;
         public event Action<string> OnLog;
 
         // Define a message terminator
@@ -190,6 +191,7 @@ namespace Networking
         {
             OnLog?.Invoke("Stopping server...");
             _cancellationTokenSource?.Cancel();
+            OnDisconnected?.Invoke();
 
             foreach (var client in _clients.Keys)
             {

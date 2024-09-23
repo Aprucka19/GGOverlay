@@ -1,11 +1,11 @@
 ﻿using System;
-using System.Windows;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 using Networking;
 using Newtonsoft.Json;
+using System.Windows;
+using System.Net.Sockets;
 
 namespace GGOverlay.Game
 {
@@ -24,10 +24,13 @@ namespace GGOverlay.Game
         // Game rules
         public GameRules _gameRules { get; set; }
 
+        // UserData
+        public UserData UserData { get; set; }
+
         public event Action<string> OnLog;
         public event Action UIUpdate;
 
-        //Nothing, here for client
+        // Nothing, here for client
         public event Action OnDisconnect;
 
         // Constructor initializes the objects
@@ -38,6 +41,18 @@ namespace GGOverlay.Game
             _gameRules = new GameRules();
             _clientPlayerMap = new Dictionary<TcpClient, PlayerInfo>();
 
+            // Load UserData
+            UserData = UserData.Load();
+
+            // If UserData.LocalPlayer is set, assign to _localPlayer
+            if (UserData.LocalPlayer != null)
+            {
+                _localPlayer = UserData.LocalPlayer;
+                var playerList = _clientPlayerMap.Values.ToList();
+                playerList.Add(_localPlayer);
+
+                _players = playerList;
+            }
 
             // Setup logging for network server
             _networkServer.OnLog += LogMessage;
@@ -46,6 +61,7 @@ namespace GGOverlay.Game
             _networkServer.OnClientConnected += OnClientConnected;
             _networkServer.OnMessageReceived += OnServerMessageReceived;
             _networkServer.OnClientDisconnected += OnClientDisconnected; // Subscribe to client disconnection
+
         }
 
         public async Task SetGameRules(string filepath)
@@ -64,11 +80,12 @@ namespace GGOverlay.Game
             }
         }
 
-
         // Set the local player information
         public async void EditPlayer(string name, double drinkModifier)
         {
-            _localPlayer = new PlayerInfo(name,drinkModifier);
+            _localPlayer = new PlayerInfo(name, drinkModifier);
+            UserData.LocalPlayer = _localPlayer;
+            UserData.Save(); // Save UserData
             await SendPlayerListUpdateAsync();
             UIUpdate?.Invoke();
         }
@@ -102,7 +119,7 @@ namespace GGOverlay.Game
             {
                 await _networkServer.SendMessageToClientAsync("RULEUPDATE:" + _gameRules.Send(), client);
             }
-            if(_clientPlayerMap.Count > 0 || _localPlayer != null)
+            if (_clientPlayerMap.Count > 0 || _localPlayer != null)
             {
                 await SendPlayerListUpdateAsync();
             }
@@ -220,6 +237,7 @@ namespace GGOverlay.Game
         public void Stop()
         {
             _networkServer.Stop();
+            UserData.Save(); // Save UserData when stopping
         }
     }
 }

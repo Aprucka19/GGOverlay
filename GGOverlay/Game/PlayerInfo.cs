@@ -110,5 +110,71 @@ namespace GGOverlay.Game
         {
             return $"{Name}: Drink Modifier = {DrinkModifier}";
         }
+
+        /// <summary>
+        /// Converts the DrinkModifier double value to a simplified fraction string.
+        /// </summary>
+        /// <returns>Fraction string representation of DrinkModifier.</returns>
+        public string ReturnFraction()
+        {
+            double value = DrinkModifier;
+
+            // Handle negative values if necessary
+            bool isNegative = value < 0;
+            value = Math.Abs(value);
+
+            // Check for the special case where the value is exactly 1
+            if (Math.Abs(value - 1) < 1.0E-6)
+            {
+                return isNegative ? "-1" : "1";
+            }
+
+            // Define tolerance for precision
+            double tolerance = 1.0E-6;
+            double numerator = value;
+            double denominator = 1;
+
+            // Iteratively adjust numerator and denominator until the value is approximately the same as input
+            while (Math.Abs(numerator % 1) > tolerance)
+            {
+                numerator *= 10;
+                denominator *= 10;
+
+                // Prevent infinite loop in case of recurring decimals
+                if (denominator > 1000000)
+                {
+                    break;
+                }
+            }
+
+            // Find the greatest common divisor to simplify the fraction
+            int gcd = GCD((int)Math.Round(numerator), (int)Math.Round(denominator));
+
+            // Simplify numerator and denominator
+            int simplifiedNumerator = (int)Math.Round(numerator) / gcd;
+            int simplifiedDenominator = (int)Math.Round(denominator) / gcd;
+
+            // Construct the fraction string
+            string fraction = $"{simplifiedNumerator}/{simplifiedDenominator}";
+
+            // Add negative sign back if necessary
+            if (isNegative)
+            {
+                fraction = "-" + fraction;
+            }
+
+            return fraction;
+        }
+
+        /// <summary>
+        /// Calculates the Greatest Common Divisor (GCD) of two integers using the Euclidean algorithm.
+        /// </summary>
+        /// <param name="a">First integer.</param>
+        /// <param name="b">Second integer.</param>
+        /// <returns>GCD of a and b.</returns>
+        private int GCD(int a, int b)
+        {
+            return b == 0 ? a : GCD(b, a % b);
+        }
     }
 }
