@@ -241,11 +241,13 @@ namespace GGOverlay
             {
                 SetBackgroundMode();
                 InteractiveControlsBackground.Visibility = Visibility.Collapsed;
+                UnifiedResizeThumb.Visibility = Visibility.Collapsed; // Hide the ResizeThumb
             }
             else
             {
                 SetInteractiveMode();
                 InteractiveControlsBackground.Visibility = Visibility.Visible;
+                UnifiedResizeThumb.Visibility = Visibility.Visible; // Show the ResizeThumb
             }
 
             // Update game rules' IsHitTestVisible
@@ -257,6 +259,7 @@ namespace GGOverlay
                 }
             }
         }
+
 
         private void SetInteractiveMode()
         {
@@ -774,7 +777,39 @@ namespace GGOverlay
 
 
 
-            var fonts = new List<string> { "Segoe UI", "Arial", "Calibri", "Verdana", "Times New Roman" };
+            var fonts = new List<string>
+            {
+                // Common system fonts
+                "Segoe UI",
+                "Arial",
+                "Calibri",
+                "Verdana",
+                "Times New Roman",
+                "Georgia",
+                "Trebuchet MS",
+                "Comic Sans MS",
+                "Courier New",
+                "Lucida Console",
+                "Palatino Linotype",
+                "Tahoma",
+                "Gill Sans MT",
+                "Century Gothic",
+                "Franklin Gothic Medium",
+                "Impact",
+                "Futura",
+                "Garamond",
+                "Cambria",
+                "Rockwell", 
+    
+                // Cursive and script-like fonts available on Windows 11
+                "Brush Script MT",
+                "Segoe Script",
+                "Lucida Handwriting",
+                "Segoe Print",
+                "Kristen ITC"
+            };
+
+
             foreach (var font in fonts)
             {
                 ComboBoxItem item = new ComboBoxItem
