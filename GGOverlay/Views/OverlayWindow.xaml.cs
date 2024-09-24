@@ -16,10 +16,11 @@ using System.Linq;
 using System.Collections.Generic;
 using Xceed.Wpf.Toolkit;
 using MessageBox = System.Windows.MessageBox;
+using System.ComponentModel;
 
 namespace GGOverlay
 {
-    public partial class OverlayWindow : Window
+    public partial class OverlayWindow : Window, INotifyPropertyChanged
     {
         private IGameInterface _game;
         private bool isInteractive = false;
@@ -33,6 +34,15 @@ namespace GGOverlay
         private const int GWL_EXSTYLE = -20;
         private const int WS_EX_TRANSPARENT = 0x00000020;
 
+        // Add properties for data binding
+        public SolidColorBrush PunishmentBackground { get; set; }
+        public SolidColorBrush PunishmentForeground { get; set; }
+        public double PunishmentTextOpacity { get; set; }
+        public FontFamily PunishmentFontFamily { get; set; }
+        public double PunishmentFontSize { get; set; }
+
+        // Timer for auto-hiding the punishment display
+        private DispatcherTimer punishmentTimer;
 
         // Font Scale Multiplier
         private double fontScaleMultiplier = 1.0;
@@ -105,8 +115,17 @@ namespace GGOverlay
             _game.UIUpdate += OnGameUIUpdate;
             _game.OnDisconnect += CloseOverlay;
 
+            // Subscribe to the OnPunishmentTriggered event
+            _game.OnGroupPunishmentTriggered += HandleGroupPunishmentTriggered;
+            _game.OnIndividualPunishmentTriggered += HandleIndividualPunishmentTriggered;
+
             // Subscribe to size change event to adjust font sizes
             this.SizeChanged += OverlayWindow_SizeChanged;
+
+            // Initialize the punishment timer
+            punishmentTimer = new DispatcherTimer();
+            punishmentTimer.Interval = TimeSpan.FromSeconds(5);
+            punishmentTimer.Tick += PunishmentTimer_Tick;
 
             // Remove the initial interactive mode setting from here
             ToggleMode();
@@ -114,7 +133,6 @@ namespace GGOverlay
             {
                 ToggleMode();
             }
-            
 
             // Initialize ComboBoxes
             InitializeComboBoxes();
@@ -122,7 +140,6 @@ namespace GGOverlay
             // Load settings from UserData
             LoadUserDataSettings();
         }
-
 
         #region OverlayLayouts Folder Management
 
@@ -179,6 +196,8 @@ namespace GGOverlay
                 Canvas.SetLeft(UnifiedBorder, 50);
                 Canvas.SetTop(UnifiedBorder, 50);
             }
+
+            ApplyPunishmentDisplaySettings();
         }
 
         private void SaveUserDataSettings()
@@ -230,8 +249,6 @@ namespace GGOverlay
             // Set the window to interactive mode after loading all UI elements
             SetInteractiveMode();
         }
-
-
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
@@ -289,7 +306,6 @@ namespace GGOverlay
                 CancelButton.Visibility = Visibility.Collapsed;
             }
         }
-
 
         private void SetInteractiveMode()
         {
@@ -441,7 +457,6 @@ namespace GGOverlay
             Color.FromRgb(139, 0, 139)      // Dark Magenta
         };
 
-
         private void LoadLobbyMembers()
         {
             // Load lobby members into LobbyMembersPanel
@@ -575,7 +590,6 @@ namespace GGOverlay
 
             UpdateConfirmButtonVisibility();
         }
-
 
         private void DeselectPlayer()
         {
@@ -759,7 +773,9 @@ namespace GGOverlay
             // Update the font scale multiplier based on the slider's value
             fontScaleMultiplier = e.NewValue;
             AdjustFontSizes(UnifiedBorder);
-            // AdjustPlayerBoxesWidth(); // Not necessary here
+
+            // Update PunishmentFontSize
+            ApplyPunishmentDisplaySettings();
         }
 
         private void AdjustFontSizes(Border border)
@@ -792,8 +808,10 @@ namespace GGOverlay
                 };
                 textBlock.BeginAnimation(TextBlock.FontSizeProperty, fontSizeAnimation);
             }
-        }
 
+            // Update PunishmentFontSize
+            ApplyPunishmentDisplaySettings();
+        }
 
         private IEnumerable<T> FindVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
         {
@@ -901,6 +919,8 @@ namespace GGOverlay
                     playerBrush.Color = color;
                 }
             }
+
+            ApplyPunishmentDisplaySettings();
         }
 
         private void SetTextOpacity(double opacity)
@@ -910,6 +930,8 @@ namespace GGOverlay
             {
                 textBlock.Opacity = opacity;
             }
+
+            ApplyPunishmentDisplaySettings();
         }
 
         private void ApplyTextOpacity()
@@ -942,6 +964,8 @@ namespace GGOverlay
                     playerBrush.Color = Color.FromArgb((byte)(opacity * 255), baseColor.R, baseColor.G, baseColor.B);
                 }
             }
+
+            ApplyPunishmentDisplaySettings();
         }
 
         private void SetTextColor(Color color)
@@ -951,6 +975,8 @@ namespace GGOverlay
             {
                 textBlock.Foreground = new SolidColorBrush(color);
             }
+
+            ApplyPunishmentDisplaySettings();
         }
 
         private void BackgroundColorPicker_SelectedColorChanged(object sender, RoutedPropertyChangedEventArgs<Color?> e)
@@ -980,8 +1006,6 @@ namespace GGOverlay
             // Initialize FontComboBox with fonts displayed in their own font type
             FontComboBox.Items.Clear();
 
-
-
             var fonts = new List<string>
             {
                 // Common system fonts
@@ -1004,7 +1028,7 @@ namespace GGOverlay
                 "Futura",
                 "Garamond",
                 "Cambria",
-                "Rockwell", 
+                "Rockwell",
 
                 // Cursive and script-like fonts available on Windows 11
                 "Brush Script MT",
@@ -1013,7 +1037,6 @@ namespace GGOverlay
                 "Segoe Print",
                 "Kristen ITC"
             };
-
 
             foreach (var font in fonts)
             {
@@ -1050,6 +1073,8 @@ namespace GGOverlay
             {
                 textBlock.FontFamily = new FontFamily(fontName);
             }
+
+            ApplyPunishmentDisplaySettings();
         }
 
         #endregion
@@ -1094,6 +1119,9 @@ namespace GGOverlay
             currentTextColor = Colors.White;
             currentFont = "Segoe UI";
 
+            // Apply punishment display settings
+            ApplyPunishmentDisplaySettings();
+
             // Save the reset settings
             SaveUserDataSettings();
 
@@ -1109,8 +1137,6 @@ namespace GGOverlay
             SaveUserDataSettings();
             CloseOverlay();
         }
-
-
 
         private void CloseOverlayButton_Click(object sender, RoutedEventArgs e)
         {
@@ -1259,7 +1285,7 @@ namespace GGOverlay
             if (playerCount == 0)
                 return;
 
-            // Define a maximum number of columns (2 for ~40% each)
+            // Define a maximum number of columns (2 for ~50% each)
             int maxColumns = 2;
 
             // Determine the actual number of columns based on the number of players
@@ -1285,9 +1311,6 @@ namespace GGOverlay
             }
         }
 
-
-
-
         private void ApplyOverlaySettings(OverlaySettings settings)
         {
             // Apply font color
@@ -1312,6 +1335,118 @@ namespace GGOverlay
 
             AdjustFontSizes(UnifiedBorder);
             AdjustPlayerBoxesWidth(); // Adjust player boxes' width after applying settings
+
+            ApplyPunishmentDisplaySettings();
+        }
+
+        private void HandleIndividualPunishmentTriggered(Rule rule, PlayerInfo player)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                // Prepare the description text
+                string description = rule.PunishmentDescription;
+
+                if (player != null)
+                {
+                    description = description.Replace("{player}", player.Name);
+                }
+
+                PunishmentDescriptionText.Text = description;
+
+                // Apply overlay settings to punishment display
+                ApplyPunishmentDisplaySettings();
+
+                // Show the punishment display
+                PunishmentDisplay.Visibility = Visibility.Visible;
+
+                // Set interactability based on isInteractive
+                PunishmentDisplay.IsHitTestVisible = isInteractive;
+
+                // Show the confirm button if necessary
+                if (player == null || player == _game._localPlayer)
+                {
+                    PunishmentConfirmButton.Visibility = Visibility.Visible;
+                    punishmentTimer.Stop(); // Stop the timer if running
+                }
+                else
+                {
+                    PunishmentConfirmButton.Visibility = Visibility.Collapsed;
+                    // Start the timer to auto-hide after 5 seconds
+                    punishmentTimer.Start();
+                }
+            });
+        }
+
+        private void HandleGroupPunishmentTriggered(Rule rule)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                // Prepare the description text
+                string description = rule.PunishmentDescription;
+
+                PunishmentDescriptionText.Text = description;
+
+                // Apply overlay settings to punishment display
+                ApplyPunishmentDisplaySettings();
+
+                // Show the punishment display
+                PunishmentDisplay.Visibility = Visibility.Visible;
+
+                // Set interactability based on isInteractive
+                PunishmentDisplay.IsHitTestVisible = isInteractive;
+
+                // Show the confirm button
+                PunishmentConfirmButton.Visibility = Visibility.Visible;
+                punishmentTimer.Stop(); // Stop the timer if running
+            });
+        }
+
+        private void ApplyPunishmentDisplaySettings()
+        {
+            // Adjust background color's alpha based on opacity
+            Color bgColor = currentBackgroundColor;
+            bgColor.A = (byte)(BackgroundOpacitySlider.Value * 255);
+            PunishmentBackground = new SolidColorBrush(bgColor);
+
+            // Set text color (foreground)
+            PunishmentForeground = new SolidColorBrush(currentTextColor);
+
+            // Set text opacity
+            PunishmentTextOpacity = TextOpacitySlider.Value;
+
+            // Set font family
+            PunishmentFontFamily = new FontFamily(currentFont);
+
+            // Set font size
+            double baseFontSize = 14; // base font size used in overlay
+            PunishmentFontSize = baseFontSize * fontScaleMultiplier * 2; // Multiply by 2 for emphasis
+            PunishmentFontSize = Math.Max(2, Math.Min(PunishmentFontSize, 300)); // Clamp between 2 and 300
+
+            // Update bindings
+            OnPropertyChanged(nameof(PunishmentBackground));
+            OnPropertyChanged(nameof(PunishmentForeground));
+            OnPropertyChanged(nameof(PunishmentTextOpacity));
+            OnPropertyChanged(nameof(PunishmentFontFamily));
+            OnPropertyChanged(nameof(PunishmentFontSize));
+        }
+
+        private void PunishmentConfirmButton_Click(object sender, RoutedEventArgs e)
+        {
+            PunishmentDisplay.Visibility = Visibility.Collapsed;
+            punishmentTimer.Stop(); // Stop the timer if running
+        }
+
+        private void PunishmentTimer_Tick(object sender, EventArgs e)
+        {
+            PunishmentDisplay.Visibility = Visibility.Collapsed;
+            punishmentTimer.Stop();
+        }
+
+        // Implement INotifyPropertyChanged for data binding
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         #endregion

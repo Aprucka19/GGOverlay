@@ -27,6 +27,8 @@ namespace GGOverlay.Game
         public event Action<string> OnLog;
         public event Action OnDisconnect;
         public event Action UIUpdate;
+        public event Action<Rule, PlayerInfo> OnIndividualPunishmentTriggered;
+        public event Action<Rule> OnGroupPunishmentTriggered;
 
         // Constructor initializes the objects
         public GameClient()
@@ -187,19 +189,15 @@ namespace GGOverlay.Game
         // Implement TriggerGroupRule
         public void TriggerGroupRule(Rule rule)
         {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                MessageBox.Show($"Group Rule Triggered: {rule.RuleDescription}", "Group Rule");
-            });
+            OnGroupPunishmentTriggered?.Invoke(rule);
+
         }
 
         // Implement TriggerIndividualRule
         public void TriggerIndividualRule(Rule rule, PlayerInfo player)
         {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                MessageBox.Show($"Individual Rule Triggered: {rule.RuleDescription}\nPlayer: {player.Name}", "Individual Rule");
-            });
+            OnIndividualPunishmentTriggered?.Invoke(rule, player);
+
         }
     }
 }

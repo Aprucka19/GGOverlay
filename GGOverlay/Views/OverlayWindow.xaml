@@ -69,8 +69,6 @@
                            DragDelta="ResizeThumb_DragDelta"/>
                 </Grid>
             </Border>
-
-            <!-- Remove the Canvas.Parent of Interactive Controls and move it to a new Grid outside -->
         </Canvas>
 
         <!-- Grid for centering the interactive controls in the middle of the desktop -->
@@ -170,11 +168,7 @@
                         <ComboBox Name="FontComboBox" 
                                   Width="150" 
                                   SelectionChanged="FontComboBox_SelectionChanged">
-                            <ComboBoxItem Content="Segoe UI" IsSelected="True"/>
-                            <ComboBoxItem Content="Arial"/>
-                            <ComboBoxItem Content="Calibri"/>
-                            <ComboBoxItem Content="Verdana"/>
-                            <ComboBoxItem Content="Times New Roman"/>
+                            <!-- Fonts will be dynamically added -->
                         </ComboBox>
                     </StackPanel>
 
@@ -204,6 +198,36 @@
                             Width="120"
                             HorizontalAlignment="Center"
                             Margin="0,0,0,5"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Punishment Display -->
+        <Grid x:Name="PunishmentDisplay"
+              Visibility="Collapsed"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Top"
+              Margin="0,50,0,0"
+              IsHitTestVisible="False">
+            <Border x:Name="PunishmentBorder"
+                    CornerRadius="10"
+                    Padding="20"
+                    Background="{Binding PunishmentBackground}">
+                <StackPanel>
+                    <TextBlock x:Name="PunishmentDescriptionText"
+                               TextWrapping="Wrap"
+                               FontSize="{Binding PunishmentFontSize}"
+                               TextAlignment="Center"
+                               Foreground="{Binding PunishmentForeground}"
+                               Opacity="{Binding PunishmentTextOpacity}"
+                               FontFamily="{Binding PunishmentFontFamily}"/>
+                    <Button x:Name="PunishmentConfirmButton"
+                            Content="Confirm"
+                            Click="PunishmentConfirmButton_Click"
+                            Width="100"
+                            Height="40"
+                            Margin="0,20,0,0"
+                            Visibility="Collapsed"/>
                 </StackPanel>
             </Border>
         </Grid>
