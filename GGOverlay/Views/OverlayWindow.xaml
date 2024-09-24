@@ -38,6 +38,27 @@
                             <StackPanel Name="GameRulesPanel">
                                 <!-- Rules will be dynamically added here -->
                             </StackPanel>
+                            <!-- Add Buttons here -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
+                                <Button Name="ConfirmButton" 
+                                        Content="✔" 
+                                        Click="ConfirmButton_Click" 
+                                        Width="50" Height="50"
+                                        FontSize="24"
+                                        Background="Green"
+                                        Foreground="White"
+                                        Visibility="Collapsed"
+                                        Margin="5,0,5,0"/>
+                                <Button Name="CancelButton" 
+                                        Content="✖" 
+                                        Click="CancelButton_Click" 
+                                        Width="50" Height="50"
+                                        FontSize="24"
+                                        Background="Red"
+                                        Foreground="White"
+                                        Visibility="Collapsed"
+                                        Margin="5,0,5,0"/>
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
 
@@ -181,7 +202,8 @@
                             Content="Close Overlay" 
                             Click="CloseOverlayButton_Click" 
                             Width="120"
-                            HorizontalAlignment="Center"/>
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,5"/>
                 </StackPanel>
             </Border>
         </Grid>

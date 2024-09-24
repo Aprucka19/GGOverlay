@@ -183,5 +183,23 @@ namespace GGOverlay.Game
             LogMessage("Client disconnected.");
             UserData.Save(); // Save UserData when stopping
         }
+
+        // Implement TriggerGroupRule
+        public void TriggerGroupRule(Rule rule)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageBox.Show($"Group Rule Triggered: {rule.RuleDescription}", "Group Rule");
+            });
+        }
+
+        // Implement TriggerIndividualRule
+        public void TriggerIndividualRule(Rule rule, PlayerInfo player)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageBox.Show($"Individual Rule Triggered: {rule.RuleDescription}\nPlayer: {player.Name}", "Individual Rule");
+            });
+        }
     }
 }

@@ -30,7 +30,7 @@ namespace GGOverlay.Game
         public event Action<string> OnLog;
         public event Action UIUpdate;
 
-        // Nothing, here for client
+        // Added OnDisconnect event
         public event Action OnDisconnect;
 
         // Constructor initializes the objects
@@ -238,6 +238,24 @@ namespace GGOverlay.Game
         {
             _networkServer.Stop();
             UserData.Save(); // Save UserData when stopping
+        }
+
+        // Implement TriggerGroupRule
+        public void TriggerGroupRule(Rule rule)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageBox.Show($"Group Rule Triggered: {rule.RuleDescription}", "Group Rule");
+            });
+        }
+
+        // Implement TriggerIndividualRule
+        public void TriggerIndividualRule(Rule rule, PlayerInfo player)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageBox.Show($"Individual Rule Triggered: {rule.RuleDescription}\nPlayer: {player.Name}", "Individual Rule");
+            });
         }
     }
 }

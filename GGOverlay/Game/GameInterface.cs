@@ -29,6 +29,10 @@ namespace GGOverlay.Game
 
         Task SetGameRules(string filepath);
 
+        void TriggerGroupRule(Rule rule);
+
+        void TriggerIndividualRule(Rule rule, PlayerInfo player);
+
         void RequestUIUpdate();
 
         // Method to stop the server or disconnect

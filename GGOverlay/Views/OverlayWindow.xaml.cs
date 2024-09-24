@@ -27,7 +27,7 @@ namespace GGOverlay
         // Constants for hotkey registration
         private const int HOTKEY_ID = 9000;
         private const uint MOD_CONTROL = 0x0002;
-        private const uint VK_BACKTICK = 0xC0; // VK_OEM_3 for '`' key
+        private const uint VK_BACKTICK = 0xC0; // VK_OEM_3 for '' key
 
         // Constants for extended window styles
         private const int GWL_EXSTYLE = -20;
@@ -69,6 +69,12 @@ namespace GGOverlay
         private List<Border> _playerBorders = new List<Border>();
         private int _colorIndex = 0;
 
+        // Variables for rule and player selection
+        private Rule selectedRule;
+        private Border selectedRuleBorder;
+        private PlayerInfo selectedPlayer;
+        private Border selectedPlayerBorder;
+
         public OverlayWindow(IGameInterface game)
         {
             // Assign _game first to prevent null reference issues
@@ -102,8 +108,13 @@ namespace GGOverlay
             // Subscribe to size change event to adjust font sizes
             this.SizeChanged += OverlayWindow_SizeChanged;
 
-            // Set initial mode to interactive
-            SetInteractiveMode();
+            // Remove the initial interactive mode setting from here
+            ToggleMode();
+            if (!isInteractive)
+            {
+                ToggleMode();
+            }
+            
 
             // Initialize ComboBoxes
             InitializeComboBoxes();
@@ -111,6 +122,7 @@ namespace GGOverlay
             // Load settings from UserData
             LoadUserDataSettings();
         }
+
 
         #region OverlayLayouts Folder Management
 
@@ -212,9 +224,13 @@ namespace GGOverlay
             bool isRegistered = RegisterHotKey(hwnd, HOTKEY_ID, MOD_CONTROL, VK_BACKTICK);
             if (!isRegistered)
             {
-                Xceed.Wpf.Toolkit.MessageBox.Show("Failed to register hotkey Ctrl + ` for overlay toggle. Please ensure it's not already in use.", "Hotkey Registration Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                Xceed.Wpf.Toolkit.MessageBox.Show("Failed to register hotkey Ctrl +  for overlay toggle. Please ensure it's not already in use.", "Hotkey Registration Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+
+            // Set the window to interactive mode after loading all UI elements
+            SetInteractiveMode();
         }
+
 
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -258,6 +274,20 @@ namespace GGOverlay
                     ruleBorder.IsHitTestVisible = isInteractive;
                 }
             }
+
+            // Update player borders' IsHitTestVisible
+            foreach (var border in _playerBorders)
+            {
+                border.IsHitTestVisible = isInteractive;
+            }
+
+            // Clear selections and hide buttons when switching modes
+            if (!isInteractive)
+            {
+                DeselectAll();
+                ConfirmButton.Visibility = Visibility.Collapsed;
+                CancelButton.Visibility = Visibility.Collapsed;
+            }
         }
 
 
@@ -294,6 +324,11 @@ namespace GGOverlay
 
             // Hide interactive controls
             InteractiveControlsBackground.Visibility = Visibility.Collapsed;
+
+            // Clear selections and hide buttons
+            DeselectAll();
+            ConfirmButton.Visibility = Visibility.Collapsed;
+            CancelButton.Visibility = Visibility.Collapsed;
         }
 
         private void LoadGameRules()
@@ -331,6 +366,9 @@ namespace GGOverlay
 
                     ruleBorder.Child = ruleText;
 
+                    // Add event handler for selection
+                    ruleBorder.MouseLeftButtonDown += RuleBorder_MouseLeftButtonDown;
+
                     GameRulesPanel.Children.Add(ruleBorder);
 
                     alternate = !alternate;
@@ -338,6 +376,57 @@ namespace GGOverlay
             }
         }
 
+        private void RuleBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!isInteractive)
+                return;
+
+            Border clickedBorder = sender as Border;
+            if (clickedBorder != null)
+            {
+                int index = GameRulesPanel.Children.IndexOf(clickedBorder);
+                if (index >= 0 && index < _game._gameRules.Rules.Count)
+                {
+                    SelectRule(_game._gameRules.Rules[index], clickedBorder);
+                }
+            }
+        }
+
+        private void SelectRule(Rule rule, Border border)
+        {
+            // Deselect previous rule
+            if (selectedRuleBorder != null)
+            {
+                selectedRuleBorder.BorderBrush = Brushes.White;
+                selectedRuleBorder.BorderThickness = new Thickness(1);
+            }
+
+            // Select new rule
+            selectedRule = rule;
+            selectedRuleBorder = border;
+
+            selectedRuleBorder.BorderBrush = Brushes.Yellow;
+            selectedRuleBorder.BorderThickness = new Thickness(3);
+
+            // If the rule is a group punishment, deselect any selected player
+            if (selectedRule.IsGroupPunishment)
+            {
+                DeselectPlayer();
+            }
+
+            UpdateConfirmButtonVisibility();
+        }
+
+        private void DeselectRule()
+        {
+            if (selectedRuleBorder != null)
+            {
+                selectedRuleBorder.BorderBrush = Brushes.White;
+                selectedRuleBorder.BorderThickness = new Thickness(1);
+                selectedRuleBorder = null;
+            }
+            selectedRule = null;
+        }
 
         // Define a consistent color list for player boxes
         private readonly List<Color> _playerColors = new List<Color>
@@ -393,7 +482,9 @@ namespace GGOverlay
                         CornerRadius = new CornerRadius(5),
                         // Margin will be set in AdjustPlayerBoxesWidth
                         Padding = new Thickness(5),
-                        Background = new SolidColorBrush(colorWithOpacity)
+                        Background = new SolidColorBrush(colorWithOpacity),
+                        Cursor = Cursors.Hand,
+                        IsHitTestVisible = isInteractive
                         // Width is managed by WrapPanel's ItemWidth
                     };
 
@@ -433,6 +524,9 @@ namespace GGOverlay
 
                     playerBorder.Child = playerStack;
 
+                    // Add event handler for selection
+                    playerBorder.MouseLeftButtonDown += PlayerBorder_MouseLeftButtonDown;
+
                     LobbyMembersPanel.Children.Add(playerBorder);
                     _playerBorders.Add(playerBorder);
                 }
@@ -441,9 +535,120 @@ namespace GGOverlay
             }
         }
 
+        private void PlayerBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!isInteractive)
+                return;
+
+            Border clickedBorder = sender as Border;
+            if (clickedBorder != null)
+            {
+                int index = LobbyMembersPanel.Children.IndexOf(clickedBorder);
+                if (index >= 0 && index < _game._players.Count)
+                {
+                    SelectPlayer(_game._players[index], clickedBorder);
+                }
+            }
+        }
+
+        private void SelectPlayer(PlayerInfo player, Border border)
+        {
+            // Deselect previous player
+            if (selectedPlayerBorder != null)
+            {
+                selectedPlayerBorder.BorderBrush = null;
+                selectedPlayerBorder.BorderThickness = new Thickness(0);
+            }
+
+            // If a group rule is selected, deselect it
+            if (selectedRule != null && selectedRule.IsGroupPunishment)
+            {
+                DeselectRule();
+            }
+
+            // Select new player
+            selectedPlayer = player;
+            selectedPlayerBorder = border;
+
+            selectedPlayerBorder.BorderBrush = Brushes.Yellow;
+            selectedPlayerBorder.BorderThickness = new Thickness(3);
+
+            UpdateConfirmButtonVisibility();
+        }
 
 
+        private void DeselectPlayer()
+        {
+            if (selectedPlayerBorder != null)
+            {
+                selectedPlayerBorder.BorderBrush = null;
+                selectedPlayerBorder.BorderThickness = new Thickness(0);
+                selectedPlayerBorder = null;
+            }
+            selectedPlayer = null;
+        }
 
+        private void UpdateConfirmButtonVisibility()
+        {
+            if (selectedRule != null)
+            {
+                if (selectedRule.IsGroupPunishment)
+                {
+                    ConfirmButton.Visibility = Visibility.Visible;
+                    CancelButton.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    // Individual punishment
+                    if (selectedPlayer != null)
+                    {
+                        ConfirmButton.Visibility = Visibility.Visible;
+                        CancelButton.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        ConfirmButton.Visibility = Visibility.Collapsed;
+                        CancelButton.Visibility = Visibility.Visible;
+                    }
+                }
+            }
+            else
+            {
+                ConfirmButton.Visibility = Visibility.Collapsed;
+                CancelButton.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void ConfirmButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (selectedRule != null)
+            {
+                if (selectedRule.IsGroupPunishment)
+                {
+                    _game.TriggerGroupRule(selectedRule);
+                }
+                else if (selectedPlayer != null)
+                {
+                    _game.TriggerIndividualRule(selectedRule, selectedPlayer);
+                }
+
+                // After confirmation, reset selections
+                DeselectAll();
+                UpdateConfirmButtonVisibility();
+            }
+        }
+
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            DeselectAll();
+            UpdateConfirmButtonVisibility();
+        }
+
+        private void DeselectAll()
+        {
+            DeselectRule();
+            DeselectPlayer();
+        }
 
         private void OnGameUIUpdate()
         {
@@ -800,7 +1005,7 @@ namespace GGOverlay
                 "Garamond",
                 "Cambria",
                 "Rockwell", 
-    
+
                 // Cursive and script-like fonts available on Windows 11
                 "Brush Script MT",
                 "Segoe Script",
