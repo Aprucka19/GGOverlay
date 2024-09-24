@@ -142,6 +142,16 @@ namespace GGOverlay.Game
                     _players = JsonConvert.DeserializeObject<List<PlayerInfo>>(serializedPlayerList) ?? new List<PlayerInfo>();
                     LogMessage("Player list updated successfully.");
 
+                    // Update local player's drink count if applicable
+                    if (_localPlayer != null)
+                    {
+                        var updatedLocalPlayer = _players.FirstOrDefault(p => p.Name == _localPlayer.Name);
+                        if (updatedLocalPlayer != null)
+                        {
+                            _localPlayer.DrinkCount = updatedLocalPlayer.DrinkCount;
+                        }
+                    }
+
                     // Safely invoke UI updates on the main thread
                     Application.Current.Dispatcher.Invoke(() =>
                     {
@@ -151,6 +161,44 @@ namespace GGOverlay.Game
                 catch (Exception ex)
                 {
                     LogMessage($"Error updating player list: {ex.Message}");
+                }
+            }
+            else if (message.StartsWith("TRIGGERINDIVIDUALRULE:"))
+            {
+                string[] parts = message.Substring("TRIGGERINDIVIDUALRULE:".Length).Split(new[] { ':' }, 2);
+                if (parts.Length == 2)
+                {
+                    string serializedRule = parts[0];
+                    string serializedPlayer = parts[1];
+
+                    try
+                    {
+                        Rule rule = JsonConvert.DeserializeObject<Rule>(serializedRule);
+                        PlayerInfo player = JsonConvert.DeserializeObject<PlayerInfo>(serializedPlayer);
+
+                        // Invoke the punishment
+                        OnIndividualPunishmentTriggered?.Invoke(rule, player);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogMessage($"Error deserializing rule or player info: {ex.Message}");
+                    }
+                }
+            }
+            else if (message.StartsWith("TRIGGERGROUPRULE:"))
+            {
+                string serializedRule = message.Substring("TRIGGERGROUPRULE:".Length);
+
+                try
+                {
+                    Rule rule = JsonConvert.DeserializeObject<Rule>(serializedRule);
+
+                    // Invoke the punishment
+                    OnGroupPunishmentTriggered?.Invoke(rule);
+                }
+                catch (Exception ex)
+                {
+                    LogMessage($"Error deserializing rule: {ex.Message}");
                 }
             }
         }
@@ -187,17 +235,26 @@ namespace GGOverlay.Game
         }
 
         // Implement TriggerGroupRule
-        public void TriggerGroupRule(Rule rule)
+        public async void TriggerGroupRule(Rule rule)
         {
-            OnGroupPunishmentTriggered?.Invoke(rule);
+            // Serialize the rule
+            string serializedRule = JsonConvert.SerializeObject(rule);
 
+            // Send message to the server
+            string message = $"TRIGGERGROUPRULE:{serializedRule}";
+            await SendMessageAsync(message);
         }
 
         // Implement TriggerIndividualRule
-        public void TriggerIndividualRule(Rule rule, PlayerInfo player)
+        public async void TriggerIndividualRule(Rule rule, PlayerInfo player)
         {
-            OnIndividualPunishmentTriggered?.Invoke(rule, player);
+            // Serialize the rule and player info
+            string serializedRule = JsonConvert.SerializeObject(rule);
+            string serializedPlayer = JsonConvert.SerializeObject(player);
 
+            // Send message to the server
+            string message = $"TRIGGERINDIVIDUALRULE:{serializedRule}:{serializedPlayer}";
+            await SendMessageAsync(message);
         }
     }
 }

@@ -12,6 +12,9 @@ namespace GGOverlay.Game
         // Drink modifier value
         public double DrinkModifier { get; set; }
 
+        // New: Drink count in sips
+        public int DrinkCount { get; set; } = 0;
+
         // Logging event callback
         public static event Action<string> OnLog;
 
@@ -62,6 +65,7 @@ namespace GGOverlay.Game
                 // Deserialize the JSON string into a PlayerInfo object using Newtonsoft.Json
                 PlayerInfo player = JsonConvert.DeserializeObject<PlayerInfo>(json) ?? new PlayerInfo();
                 OnLog?.Invoke("Player information loaded successfully.");
+                player.DrinkCount = 0;
                 return player;
             }
             catch (Exception ex)

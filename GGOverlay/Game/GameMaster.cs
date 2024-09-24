@@ -6,6 +6,8 @@ using Networking;
 using Newtonsoft.Json;
 using System.Windows;
 using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace GGOverlay.Game
 {
@@ -27,6 +29,9 @@ namespace GGOverlay.Game
         // UserData
         public UserData UserData { get; set; }
 
+        // Last rule trigger times
+        private Dictionary<string, DateTime> _lastRuleTriggerTime;
+
         public event Action<string> OnLog;
         public event Action UIUpdate;
         public event Action<Rule, PlayerInfo> OnIndividualPunishmentTriggered;
@@ -42,6 +47,7 @@ namespace GGOverlay.Game
             _players = new List<PlayerInfo>();
             _gameRules = new GameRules();
             _clientPlayerMap = new Dictionary<TcpClient, PlayerInfo>();
+            _lastRuleTriggerTime = new Dictionary<string, DateTime>();
 
             // Load UserData
             UserData = UserData.Load();
@@ -63,7 +69,6 @@ namespace GGOverlay.Game
             _networkServer.OnClientConnected += OnClientConnected;
             _networkServer.OnMessageReceived += OnServerMessageReceived;
             _networkServer.OnClientDisconnected += OnClientDisconnected; // Subscribe to client disconnection
-
         }
 
         public async Task SetGameRules(string filepath)
@@ -131,7 +136,6 @@ namespace GGOverlay.Game
         {
             LogMessage($"Received from client {client.Client.RemoteEndPoint}: {message}");
 
-            // Check if the message is a player update
             if (message.StartsWith("PLAYERUPDATE:"))
             {
                 // Extract the serialized player info from the message
@@ -170,6 +174,41 @@ namespace GGOverlay.Game
                     UIUpdate?.Invoke();
                 });
             }
+            else if (message.StartsWith("TRIGGERINDIVIDUALRULE:"))
+            {
+                string[] parts = message.Substring("TRIGGERINDIVIDUALRULE:".Length).Split(new[] { ':' }, 2);
+                if (parts.Length == 2)
+                {
+                    string serializedRule = parts[0];
+                    string serializedPlayer = parts[1];
+
+                    try
+                    {
+                        Rule rule = JsonConvert.DeserializeObject<Rule>(serializedRule);
+                        PlayerInfo player = JsonConvert.DeserializeObject<PlayerInfo>(serializedPlayer);
+
+                        await HandleTriggerIndividualRule(rule, player);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogMessage($"Error deserializing rule or player info: {ex.Message}");
+                    }
+                }
+            }
+            else if (message.StartsWith("TRIGGERGROUPRULE:"))
+            {
+                string serializedRule = message.Substring("TRIGGERGROUPRULE:".Length);
+
+                try
+                {
+                    Rule rule = JsonConvert.DeserializeObject<Rule>(serializedRule);
+                    await HandleTriggerGroupRule(rule);
+                }
+                catch (Exception ex)
+                {
+                    LogMessage($"Error deserializing rule: {ex.Message}");
+                }
+            }
         }
 
         // Handle client disconnections
@@ -199,7 +238,10 @@ namespace GGOverlay.Game
             {
                 // Create a list of all player infos
                 var playerList = _clientPlayerMap.Values.ToList();
-                playerList.Add(_localPlayer);
+                if (_localPlayer != null)
+                {
+                    playerList.Add(_localPlayer);
+                }
 
                 _players = playerList;
 
@@ -242,18 +284,128 @@ namespace GGOverlay.Game
             UserData.Save(); // Save UserData when stopping
         }
 
-        // Implement TriggerGroupRule
-        public void TriggerGroupRule(Rule rule)
+        // Handle TriggerIndividualRule logic
+        private async Task HandleTriggerIndividualRule(Rule rule, PlayerInfo player)
         {
-            OnGroupPunishmentTriggered?.Invoke(rule);
+            // Generate a unique key for the rule and player combo
+            string ruleKey = $"INDIVIDUAL:{GetRuleKey(rule)}:{GetPlayerKey(player)}";
 
+            DateTime now = DateTime.Now;
+
+            if (_lastRuleTriggerTime.ContainsKey(ruleKey))
+            {
+                DateTime lastTriggerTime = _lastRuleTriggerTime[ruleKey];
+                if ((now - lastTriggerTime).TotalSeconds < 10)
+                {
+                    // Ignore the trigger
+                    LogMessage($"Ignored trigger of rule '{rule.ToString}' for player '{player.Name}' due to cooldown.");
+                    return;
+                }
+            }
+
+            // Update the last trigger time
+            _lastRuleTriggerTime[ruleKey] = now;
+
+            // Calculate adjusted punishment quantity
+            int adjustedPunishmentQuantity = (int)Math.Round(rule.PunishmentQuantity * player.DrinkModifier, MidpointRounding.AwayFromZero);
+
+            // Find the player in the list
+            PlayerInfo targetPlayer = _players.FirstOrDefault(p => p.Name == player.Name);
+            if (targetPlayer != null)
+            {
+                // Add the adjusted punishment quantity to the player's drink count
+                targetPlayer.DrinkCount += adjustedPunishmentQuantity;
+            }
+
+            // Send out a Player Update
+            await SendPlayerListUpdateAsync();
+            UIUpdate?.Invoke();
+
+            // Send out a message to all clients to trigger the rule
+            string serializedRule = JsonConvert.SerializeObject(rule);
+            string serializedPlayer = JsonConvert.SerializeObject(player);
+            string triggerMessage = $"TRIGGERINDIVIDUALRULE:{serializedRule}:{serializedPlayer}";
+            await BroadcastMessageAsync(triggerMessage);
+
+            // Invoke the punishment for the GameMaster
+            OnIndividualPunishmentTriggered?.Invoke(rule, player);
         }
 
-        // Implement TriggerIndividualRule
+        // Handle TriggerGroupRule logic
+        private async Task HandleTriggerGroupRule(Rule rule)
+        {
+            string ruleKey = $"GROUP:{GetRuleKey(rule)}";
+
+            DateTime now = DateTime.Now;
+
+            if (_lastRuleTriggerTime.ContainsKey(ruleKey))
+            {
+                DateTime lastTriggerTime = _lastRuleTriggerTime[ruleKey];
+                if ((now - lastTriggerTime).TotalSeconds < 10)
+                {
+                    // Ignore the trigger
+                    LogMessage($"Ignored trigger of group rule '{rule.ToString}' due to cooldown.");
+                    return;
+                }
+            }
+
+            // Update the last trigger time
+            _lastRuleTriggerTime[ruleKey] = now;
+
+            // Update drink counters for all players
+            foreach (var player in _players)
+            {
+                int adjustedPunishmentQuantity = (int)Math.Round(rule.PunishmentQuantity * player.DrinkModifier, MidpointRounding.AwayFromZero);
+                player.DrinkCount += adjustedPunishmentQuantity;
+            }
+
+            // Send out a Player Update
+            await SendPlayerListUpdateAsync();
+            UIUpdate?.Invoke();
+
+            // Send out a message to all clients to trigger the rule
+            string serializedRule = JsonConvert.SerializeObject(rule);
+            string triggerMessage = $"TRIGGERGROUPRULE:{serializedRule}";
+            await BroadcastMessageAsync(triggerMessage);
+
+            // Invoke the punishment for the GameMaster
+            OnGroupPunishmentTriggered?.Invoke(rule);
+        }
+
+        // Helper methods to generate unique keys
+        private string GetRuleKey(Rule rule)
+        {
+            string serializedRule = JsonConvert.SerializeObject(rule);
+            return ComputeHash(serializedRule);
+        }
+
+        private string GetPlayerKey(PlayerInfo player)
+        {
+            string serializedPlayer = JsonConvert.SerializeObject(player);
+            return ComputeHash(serializedPlayer);
+        }
+
+        private string ComputeHash(string input)
+        {
+            using (var sha256 = SHA256.Create())
+            {
+                byte[] inputBytes = Encoding.UTF8.GetBytes(input);
+                byte[] hashBytes = sha256.ComputeHash(inputBytes);
+                // Convert to a hexadecimal string
+                return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+            }
+        }
+
+        public void TriggerGroupRule(Rule rule)
+        {
+            // Since GameMaster is the server, we handle the trigger directly
+            _ = HandleTriggerGroupRule(rule);
+        }
+
         public void TriggerIndividualRule(Rule rule, PlayerInfo player)
         {
-            OnIndividualPunishmentTriggered?.Invoke(rule, player);
-
+            // Since GameMaster is the server, we handle the trigger directly
+            _ = HandleTriggerIndividualRule(rule, player);
         }
     }
 }

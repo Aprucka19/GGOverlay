@@ -70,7 +70,9 @@ namespace GGOverlay
                 try
                 {
                     string json = File.ReadAllText(userDataPath);
-                    return JsonConvert.DeserializeObject<UserData>(json) ?? new UserData();
+                    UserData data = JsonConvert.DeserializeObject<UserData>(json) ?? new UserData();
+                    data.LocalPlayer.DrinkCount = 0;
+                    return data;
                 }
                 catch (Exception ex)
                 {

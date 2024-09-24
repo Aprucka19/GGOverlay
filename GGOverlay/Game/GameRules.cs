@@ -229,14 +229,21 @@ namespace GGOverlay.Game
         }
 
         // Method to get the formatted punishment description
-        public string GetPunishmentDescription(string name = "{Player}")
+        public string GetPunishmentDescription(string name = "{Player}", double DrinkModifier = 1)
         {
             // Replace the placeholders with provided name and formatted drink description
             string playerName = string.IsNullOrEmpty(name) ? "{Player}" : name;
-            string drinkDescription = FormatDrinkDescription(PunishmentQuantity);
+
+            // Calculate the adjusted punishment quantity using Math.Round with MidpointRounding.AwayFromZero
+            int adjustedPunishmentQuantity = (int)Math.Round(PunishmentQuantity * DrinkModifier, MidpointRounding.AwayFromZero);
+
+            // Use the adjusted punishment quantity in the formatted drink description
+            string drinkDescription = FormatDrinkDescription(adjustedPunishmentQuantity);
 
             return PunishmentDescription.Replace("{0}", playerName).Replace("{1}", drinkDescription);
         }
+
+
 
         private string FormatDrinkDescription(int quantity)
         {
