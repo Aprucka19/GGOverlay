@@ -138,13 +138,8 @@ namespace GGOverlay
                 double newFontSize = 14 * scale;  // Base font size multiplied by scale
                 newFontSize = Math.Max(2, Math.Min(newFontSize, 300)); // Clamp between 2 and 300
 
-                // Animate the font size change for a smooth transition
-                DoubleAnimation fontSizeAnimation = new DoubleAnimation
-                {
-                    To = newFontSize,
-                    Duration = TimeSpan.FromMilliseconds(200)
-                };
-                textBlock.BeginAnimation(TextBlock.FontSizeProperty, fontSizeAnimation);
+                // Set the font size directly without animation
+                textBlock.FontSize = newFontSize;
             }
         }
 

@@ -21,7 +21,7 @@ namespace GGOverlay
 
         // Constants for hotkey registration
         private const int HOTKEY_ID = 9000;
-        private const uint MOD_CONTROL = 0x0002;
+        private const uint MOD_SHIFT = 0x0004;
         private const uint VK_BACKTICK = 0xC0; // VK_OEM_3 for '`' key
 
         // Constants for extended window styles
@@ -138,7 +138,7 @@ namespace GGOverlay
             HwndSource source = HwndSource.FromHwnd(hwnd);
             source.AddHook(HwndHook);
 
-            bool isRegistered = RegisterHotKey(hwnd, HOTKEY_ID, MOD_CONTROL, VK_BACKTICK);
+            bool isRegistered = RegisterHotKey(hwnd, HOTKEY_ID, MOD_SHIFT, VK_BACKTICK);
             if (!isRegistered)
             {
                 Xceed.Wpf.Toolkit.MessageBox.Show("Failed to register hotkey Ctrl + ` for overlay toggle. Please ensure it's not already in use.", "Hotkey Registration Failed", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -196,6 +196,15 @@ namespace GGOverlay
                 border.IsHitTestVisible = isInteractive;
             }
 
+            // Update punishment displays' IsHitTestVisible
+            foreach (var child in PunishmentDisplayStackPanel.Children)
+            {
+                if (child is Border punishmentBorder)
+                {
+                    punishmentBorder.IsHitTestVisible = isInteractive;
+                }
+            }
+
             // Clear selections and hide buttons when switching modes
             if (!isInteractive)
             {
@@ -205,36 +214,38 @@ namespace GGOverlay
             }
         }
 
+
         private void SetInteractiveMode()
         {
             // Make the window interactive
-            this.IsHitTestVisible = true;
-            this.Focusable = true;
-            this.Topmost = true;
             isInteractive = true;
 
-            var hwnd = new WindowInteropHelper(this).Handle;
-            int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
-            SetWindowLong(hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
-
-            // Show interactive controls
-            InteractiveControlsBackground.Visibility = Visibility.Visible;
+            // Update IsHitTestVisible on main elements
+            MainCanvas.IsHitTestVisible = true;
 
             // Bring the window to the front and focus
+            this.Topmost = true;
+            this.Focusable = true;
             this.Activate();
         }
+
 
         private void SetBackgroundMode()
         {
             // Make the window non-interactive
-            this.IsHitTestVisible = false;
-            this.Focusable = false;
-            this.Topmost = true;
             isInteractive = false;
 
-            var hwnd = new WindowInteropHelper(this).Handle;
-            int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
-            SetWindowLong(hwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT);
+            // Update IsHitTestVisible on main elements
+            MainCanvas.IsHitTestVisible = false;
+
+            // Keep punishment popups interactive
+            foreach (var child in PunishmentDisplayStackPanel.Children)
+            {
+                if (child is Border punishmentBorder)
+                {
+                    punishmentBorder.IsHitTestVisible = true;
+                }
+            }
 
             // Hide interactive controls
             InteractiveControlsBackground.Visibility = Visibility.Collapsed;
@@ -244,6 +255,7 @@ namespace GGOverlay
             ConfirmButton.Visibility = Visibility.Collapsed;
             CancelButton.Visibility = Visibility.Collapsed;
         }
+
 
         private void OverlayWindow_SizeChanged(object sender, SizeChangedEventArgs e)
         {

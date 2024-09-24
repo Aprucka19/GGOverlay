@@ -9,7 +9,7 @@
         Background="Transparent"
         Topmost="True" 
         ShowInTaskbar="False">
-    <Grid>
+    <Grid Background="Transparent">
         <!-- Main Content Area -->
         <Canvas Name="MainCanvas" Background="Transparent">
             <!-- Unified Block for Lobby and Game Rules -->
