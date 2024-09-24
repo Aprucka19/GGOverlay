@@ -136,80 +136,41 @@ namespace GGOverlay.Game
         {
             LogMessage($"Received from client {client.Client.RemoteEndPoint}: {message}");
 
-            if (message.StartsWith("PLAYERUPDATE:"))
+            try
             {
-                // Extract the serialized player info from the message
-                string serializedPlayer = message.Substring("PLAYERUPDATE:".Length);
-                PlayerInfo updatedPlayer = new PlayerInfo();
+                // Deserialize the message to a dynamic object
+                dynamic messageObject = JsonConvert.DeserializeObject(message);
 
-                try
-                {
-                    // Deserialize the received player info
-                    updatedPlayer.Receive(serializedPlayer);
-                }
-                catch (Exception ex)
-                {
-                    LogMessage($"Error deserializing player info: {ex.Message}");
-                    return;
-                }
+                string messageType = messageObject.MessageType;
 
-                // Check if the TcpClient already exists in the dictionary
-                if (_clientPlayerMap.ContainsKey(client))
+                if (messageType == "TRIGGERINDIVIDUALRULE")
                 {
-                    // Update the existing player's information
-                    _clientPlayerMap[client] = updatedPlayer;
-                    LogMessage($"Updated player info for client {client.Client.RemoteEndPoint}");
+                    Rule rule = JsonConvert.DeserializeObject<Rule>(messageObject.Rule.ToString());
+                    PlayerInfo player = JsonConvert.DeserializeObject<PlayerInfo>(messageObject.Player.ToString());
+
+                    await HandleTriggerIndividualRule(rule, player);
+                }
+                else if (messageType == "TRIGGERGROUPRULE")
+                {
+                    Rule rule = JsonConvert.DeserializeObject<Rule>(messageObject.Rule.ToString());
+
+                    await HandleTriggerGroupRule(rule);
+                }
+                else if (messageType == "PLAYERUPDATE")
+                {
+                    // Handle player update
                 }
                 else
                 {
-                    // Add the new player information
-                    _clientPlayerMap.Add(client, updatedPlayer);
-                    LogMessage($"Added new player info for client {client.Client.RemoteEndPoint}");
-                }
-
-                // Send an updated player list to all clients
-                await SendPlayerListUpdateAsync();
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    UIUpdate?.Invoke();
-                });
-            }
-            else if (message.StartsWith("TRIGGERINDIVIDUALRULE:"))
-            {
-                string[] parts = message.Substring("TRIGGERINDIVIDUALRULE:".Length).Split(new[] { ':' }, 2);
-                if (parts.Length == 2)
-                {
-                    string serializedRule = parts[0];
-                    string serializedPlayer = parts[1];
-
-                    try
-                    {
-                        Rule rule = JsonConvert.DeserializeObject<Rule>(serializedRule);
-                        PlayerInfo player = JsonConvert.DeserializeObject<PlayerInfo>(serializedPlayer);
-
-                        await HandleTriggerIndividualRule(rule, player);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogMessage($"Error deserializing rule or player info: {ex.Message}");
-                    }
+                    LogMessage("Unknown message type received.");
                 }
             }
-            else if (message.StartsWith("TRIGGERGROUPRULE:"))
+            catch (Exception ex)
             {
-                string serializedRule = message.Substring("TRIGGERGROUPRULE:".Length);
-
-                try
-                {
-                    Rule rule = JsonConvert.DeserializeObject<Rule>(serializedRule);
-                    await HandleTriggerGroupRule(rule);
-                }
-                catch (Exception ex)
-                {
-                    LogMessage($"Error deserializing rule: {ex.Message}");
-                }
+                LogMessage($"Error processing message: {ex.Message}");
             }
         }
+
 
         // Handle client disconnections
         private async void OnClientDisconnected(TcpClient client)
@@ -284,7 +245,6 @@ namespace GGOverlay.Game
             UserData.Save(); // Save UserData when stopping
         }
 
-        // Handle TriggerIndividualRule logic
         private async Task HandleTriggerIndividualRule(Rule rule, PlayerInfo player)
         {
             // Generate a unique key for the rule and player combo
@@ -297,8 +257,8 @@ namespace GGOverlay.Game
                 DateTime lastTriggerTime = _lastRuleTriggerTime[ruleKey];
                 if ((now - lastTriggerTime).TotalSeconds < 10)
                 {
-                    // Ignore the trigger
-                    LogMessage($"Ignored trigger of rule '{rule.ToString}' for player '{player.Name}' due to cooldown.");
+                    // Ignore the trigger due to cooldown
+                    LogMessage($"Ignored trigger of rule '{rule.RuleDescription}' for player '{player.Name}' due to cooldown.");
                     return;
                 }
             }
@@ -319,19 +279,21 @@ namespace GGOverlay.Game
 
             // Send out a Player Update
             await SendPlayerListUpdateAsync();
-            UIUpdate?.Invoke();
+
+            // Update UI and invoke events on the UI thread
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                UIUpdate?.Invoke();
+                OnIndividualPunishmentTriggered?.Invoke(rule, player);
+            });
 
             // Send out a message to all clients to trigger the rule
-            string serializedRule = JsonConvert.SerializeObject(rule);
-            string serializedPlayer = JsonConvert.SerializeObject(player);
-            string triggerMessage = $"TRIGGERINDIVIDUALRULE:{serializedRule}:{serializedPlayer}";
-            await BroadcastMessageAsync(triggerMessage);
+            var messageObject = new TriggerIndividualRuleMessage { Rule = rule, Player = player };
+            string triggerMessage = JsonConvert.SerializeObject(messageObject);
 
-            // Invoke the punishment for the GameMaster
-            OnIndividualPunishmentTriggered?.Invoke(rule, player);
+            await BroadcastMessageAsync(triggerMessage);
         }
 
-        // Handle TriggerGroupRule logic
         private async Task HandleTriggerGroupRule(Rule rule)
         {
             string ruleKey = $"GROUP:{GetRuleKey(rule)}";
@@ -343,8 +305,8 @@ namespace GGOverlay.Game
                 DateTime lastTriggerTime = _lastRuleTriggerTime[ruleKey];
                 if ((now - lastTriggerTime).TotalSeconds < 10)
                 {
-                    // Ignore the trigger
-                    LogMessage($"Ignored trigger of group rule '{rule.ToString}' due to cooldown.");
+                    // Ignore the trigger due to cooldown
+                    LogMessage($"Ignored trigger of group rule '{rule.RuleDescription}' due to cooldown.");
                     return;
                 }
             }
@@ -361,16 +323,21 @@ namespace GGOverlay.Game
 
             // Send out a Player Update
             await SendPlayerListUpdateAsync();
-            UIUpdate?.Invoke();
+
+            // Update UI and invoke events on the UI thread
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                UIUpdate?.Invoke();
+                OnGroupPunishmentTriggered?.Invoke(rule);
+            });
 
             // Send out a message to all clients to trigger the rule
-            string serializedRule = JsonConvert.SerializeObject(rule);
-            string triggerMessage = $"TRIGGERGROUPRULE:{serializedRule}";
-            await BroadcastMessageAsync(triggerMessage);
+            var messageObject = new TriggerGroupRuleMessage { Rule = rule };
+            string triggerMessage = JsonConvert.SerializeObject(messageObject);
 
-            // Invoke the punishment for the GameMaster
-            OnGroupPunishmentTriggered?.Invoke(rule);
+            await BroadcastMessageAsync(triggerMessage);
         }
+
 
         // Helper methods to generate unique keys
         private string GetRuleKey(Rule rule)

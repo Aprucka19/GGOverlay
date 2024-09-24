@@ -29,4 +29,18 @@ namespace GGOverlay.Game
         void RequestUIUpdate();
         void Stop();
     }
+
+
+    public class TriggerIndividualRuleMessage
+    {
+        public string MessageType { get; set; } = "TRIGGERINDIVIDUALRULE";
+        public Rule Rule { get; set; }
+        public PlayerInfo Player { get; set; }
+    }
+
+    public class TriggerGroupRuleMessage
+    {
+        public string MessageType { get; set; } = "TRIGGERGROUPRULE";
+        public Rule Rule { get; set; }
+    }
 }

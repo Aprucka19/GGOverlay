@@ -114,94 +114,51 @@ namespace GGOverlay.Game
         {
             LogMessage($"Message received: {message}");
 
-            // Check if the message is a game rules update
-            if (message.StartsWith("RULEUPDATE:"))
+            try
             {
-                // Extract the serialized rules from the message
-                string serializedRules = message.Substring("RULEUPDATE:".Length);
+                dynamic messageObject = JsonConvert.DeserializeObject(message);
+                string messageType = messageObject.MessageType;
 
-                // Receive and apply the game rules
-                _gameRules.Receive(serializedRules);
-                LogMessage("Game rules updated successfully.");
-
-                // Safely invoke UI updates on the main thread
-                Application.Current.Dispatcher.Invoke(() =>
+                if (messageType == "RULEUPDATE")
                 {
-                    UIUpdate?.Invoke();
-                });
-            }
-            // Check if the message is a player list update
-            else if (message.StartsWith("PlayerListUpdate:"))
-            {
-                // Extract the serialized player list from the message
-                string serializedPlayerList = message.Substring("PlayerListUpdate:".Length);
-
-                try
-                {
-                    // Deserialize the player list from the received JSON string
-                    _players = JsonConvert.DeserializeObject<List<PlayerInfo>>(serializedPlayerList) ?? new List<PlayerInfo>();
-                    LogMessage("Player list updated successfully.");
-
-                    // Update local player's drink count if applicable
-                    if (_localPlayer != null)
-                    {
-                        var updatedLocalPlayer = _players.FirstOrDefault(p => p.Name == _localPlayer.Name);
-                        if (updatedLocalPlayer != null)
-                        {
-                            _localPlayer.DrinkCount = updatedLocalPlayer.DrinkCount;
-                        }
-                    }
-
-                    // Safely invoke UI updates on the main thread
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        UIUpdate?.Invoke();
-                    });
+                    // Handle rule update
                 }
-                catch (Exception ex)
+                else if (messageType == "PlayerListUpdate")
                 {
-                    LogMessage($"Error updating player list: {ex.Message}");
+                    // Handle player list update
                 }
-            }
-            else if (message.StartsWith("TRIGGERINDIVIDUALRULE:"))
-            {
-                string[] parts = message.Substring("TRIGGERINDIVIDUALRULE:".Length).Split(new[] { ':' }, 2);
-                if (parts.Length == 2)
+                else if (messageType == "TRIGGERINDIVIDUALRULE")
                 {
-                    string serializedRule = parts[0];
-                    string serializedPlayer = parts[1];
-
-                    try
-                    {
-                        Rule rule = JsonConvert.DeserializeObject<Rule>(serializedRule);
-                        PlayerInfo player = JsonConvert.DeserializeObject<PlayerInfo>(serializedPlayer);
-
-                        // Invoke the punishment
-                        OnIndividualPunishmentTriggered?.Invoke(rule, player);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogMessage($"Error deserializing rule or player info: {ex.Message}");
-                    }
-                }
-            }
-            else if (message.StartsWith("TRIGGERGROUPRULE:"))
-            {
-                string serializedRule = message.Substring("TRIGGERGROUPRULE:".Length);
-
-                try
-                {
-                    Rule rule = JsonConvert.DeserializeObject<Rule>(serializedRule);
+                    Rule rule = JsonConvert.DeserializeObject<Rule>(messageObject.Rule.ToString());
+                    PlayerInfo player = JsonConvert.DeserializeObject<PlayerInfo>(messageObject.Player.ToString());
 
                     // Invoke the punishment
-                    OnGroupPunishmentTriggered?.Invoke(rule);
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        OnIndividualPunishmentTriggered?.Invoke(rule, player);
+                    });
                 }
-                catch (Exception ex)
+                else if (messageType == "TRIGGERGROUPRULE")
                 {
-                    LogMessage($"Error deserializing rule: {ex.Message}");
+                    Rule rule = JsonConvert.DeserializeObject<Rule>(messageObject.Rule.ToString());
+
+                    // Invoke the punishment
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        OnGroupPunishmentTriggered?.Invoke(rule);
+                    });
+                }
+                else
+                {
+                    LogMessage("Unknown message type received.");
                 }
             }
+            catch (Exception ex)
+            {
+                LogMessage($"Error processing message: {ex.Message}");
+            }
         }
+
 
         // Handle client disconnection
         private void OnDisconnected()
