@@ -479,7 +479,7 @@ namespace GGOverlay
             PunishmentDisplayStackPanel.Children.Add(punishmentBorder);
 
             // Show the confirm button if necessary
-            if (player == null || player == _game._localPlayer)
+            if (player == null || string.Equals(player.Name, _game._localPlayer.Name, StringComparison.OrdinalIgnoreCase))
             {
                 punishmentConfirmButton.Visibility = Visibility.Visible;
             }
@@ -497,6 +497,7 @@ namespace GGOverlay
                 individualPunishmentTimer.Start();
             }
         }
+
 
     }
 }

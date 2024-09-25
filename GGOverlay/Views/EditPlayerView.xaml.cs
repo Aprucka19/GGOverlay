@@ -10,6 +10,7 @@ namespace GGOverlay
         private MainWindow _mainWindow;
         private IGameInterface _game;
         private Button _selectedButton;
+        private int _drinkQuantity;
 
         public EditPlayerView(MainWindow mainWindow, IGameInterface game)
         {
@@ -20,6 +21,7 @@ namespace GGOverlay
             // Initialize with current player info
             var currentName = _game._localPlayer?.Name ?? string.Empty;
             var currentModifier = _game._localPlayer?.DrinkModifier ?? 1.0;
+            _drinkQuantity = _game._localPlayer?.DrinkCount ?? 0;
 
             NameTextBox.Text = currentName;
             SetInitialModifierButton(currentModifier);
@@ -44,6 +46,7 @@ namespace GGOverlay
             }
 
             _game.EditPlayer(playerName, modifier.Value);
+            _game._localPlayer.DrinkCount = _drinkQuantity;
 
             _mainWindow.ShowLobbyView(_game); // Return to Lobby View
         }
