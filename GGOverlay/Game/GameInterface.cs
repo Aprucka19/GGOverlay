@@ -22,7 +22,7 @@ namespace GGOverlay.Game
         UserData UserData { get; set; }
 
         Task Start(int port, string ipAddress = null);
-        void EditPlayer(string name, double drinkModifier);
+        void EditPlayer(string name, double drinkModifier, int drinkCount = 0);
         Task SetGameRules(string filepath);
         void TriggerGroupRule(Rule rule);
         void TriggerIndividualRule(Rule rule, PlayerInfo player);
@@ -30,17 +30,4 @@ namespace GGOverlay.Game
         void Stop();
     }
 
-
-    public class TriggerIndividualRuleMessage
-    {
-        public string MessageType { get; set; } = "TRIGGERINDIVIDUALRULE";
-        public Rule Rule { get; set; }
-        public PlayerInfo Player { get; set; }
-    }
-
-    public class TriggerGroupRuleMessage
-    {
-        public string MessageType { get; set; } = "TRIGGERGROUPRULE";
-        public Rule Rule { get; set; }
-    }
 }

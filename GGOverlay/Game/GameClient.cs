@@ -54,9 +54,10 @@ namespace GGOverlay.Game
             _networkClient.OnDisconnected += OnDisconnected;
         }
 
-        public async void EditPlayer(string name, double drinkModifier)
+        public async void EditPlayer(string name, double drinkModifier, int drinkCount = 0)
         {
             _localPlayer = new PlayerInfo(name, drinkModifier);
+            _localPlayer.DrinkCount = drinkCount;
             UserData.LocalPlayer = _localPlayer;
             UserData.Save(); // Save UserData
             UIUpdate?.Invoke();
