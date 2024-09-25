@@ -156,9 +156,43 @@ namespace GGOverlay.Game
 
                     await HandleTriggerGroupRule(rule);
                 }
-                else if (messageType == "PLAYERUPDATE")
+                else if (message.StartsWith("PLAYERUPDATE:"))
                 {
-                    // Handle player update
+                    // Extract the serialized player info from the message
+                    string serializedPlayer = message.Substring("PLAYERUPDATE:".Length);
+                    PlayerInfo updatedPlayer = new PlayerInfo();
+
+                    try
+                    {
+                        // Deserialize the received player info
+                        updatedPlayer.Receive(serializedPlayer);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogMessage($"Error deserializing player info: {ex.Message}");
+                        return;
+                    }
+
+                    // Check if the TcpClient already exists in the dictionary
+                    if (_clientPlayerMap.ContainsKey(client))
+                    {
+                        // Update the existing player's information
+                        _clientPlayerMap[client] = updatedPlayer;
+                        LogMessage($"Updated player info for client {client.Client.RemoteEndPoint}");
+                    }
+                    else
+                    {
+                        // Add the new player information
+                        _clientPlayerMap.Add(client, updatedPlayer);
+                        LogMessage($"Added new player info for client {client.Client.RemoteEndPoint}");
+                    }
+
+                    // Send an updated player list to all clients
+                    await SendPlayerListUpdateAsync();
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        UIUpdate?.Invoke();
+                    });
                 }
                 else
                 {

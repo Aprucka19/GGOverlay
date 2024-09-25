@@ -119,13 +119,54 @@ namespace GGOverlay.Game
                 dynamic messageObject = JsonConvert.DeserializeObject(message);
                 string messageType = messageObject.MessageType;
 
-                if (messageType == "RULEUPDATE")
+                // Check if the message is a game rules update
+                if (message.StartsWith("RULEUPDATE:"))
                 {
-                    // Handle rule update
+                    // Extract the serialized rules from the message
+                    string serializedRules = message.Substring("RULEUPDATE:".Length);
+
+                    // Receive and apply the game rules
+                    _gameRules.Receive(serializedRules);
+                    LogMessage("Game rules updated successfully.");
+
+                    // Safely invoke UI updates on the main thread
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        UIUpdate?.Invoke();
+                    });
                 }
-                else if (messageType == "PlayerListUpdate")
+                // Check if the message is a player list update
+                else if (message.StartsWith("PlayerListUpdate:"))
                 {
-                    // Handle player list update
+                    // Extract the serialized player list from the message
+                    string serializedPlayerList = message.Substring("PlayerListUpdate:".Length);
+
+                    try
+                    {
+                        // Deserialize the player list from the received JSON string
+                        _players = JsonConvert.DeserializeObject<List<PlayerInfo>>(serializedPlayerList) ?? new List<PlayerInfo>();
+                        LogMessage("Player list updated successfully.");
+
+                        // Update local player's drink count if applicable
+                        if (_localPlayer != null)
+                        {
+                            var updatedLocalPlayer = _players.FirstOrDefault(p => p.Name == _localPlayer.Name);
+                            if (updatedLocalPlayer != null)
+                            {
+                                _localPlayer.DrinkCount = updatedLocalPlayer.DrinkCount;
+                            }
+                        }
+
+                        // Safely invoke UI updates on the main thread
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            UIUpdate?.Invoke();
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        LogMessage($"Error updating player list: {ex.Message}");
+                    }
                 }
                 else if (messageType == "TRIGGERINDIVIDUALRULE")
                 {
