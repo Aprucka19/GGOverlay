@@ -83,9 +83,13 @@ namespace GGOverlay.Game
         {
             if (_gameRules != null)
             {
-                await BroadcastMessageAsync("RULEUPDATE:" + _gameRules.Send());
+                var messageObject = new RuleUpdateMessage { Rules = _gameRules.Rules };
+                string serializedMessage = JsonConvert.SerializeObject(messageObject);
+
+                await BroadcastMessageAsync(serializedMessage);
             }
         }
+
 
         // Set the local player information
         public async void EditPlayer(string name, double drinkModifier)
@@ -124,13 +128,17 @@ namespace GGOverlay.Game
             LogMessage($"Client connected: {client.Client.RemoteEndPoint}");
             if (_gameRules != null)
             {
-                await _networkServer.SendMessageToClientAsync("RULEUPDATE:" + _gameRules.Send(), client);
+                var messageObject = new RuleUpdateMessage { Rules = _gameRules.Rules };
+                string serializedMessage = JsonConvert.SerializeObject(messageObject);
+
+                await _networkServer.SendMessageToClientAsync(serializedMessage, client);
             }
             if (_clientPlayerMap.Count > 0 || _localPlayer != null)
             {
                 await SendPlayerListUpdateAsync();
             }
         }
+
 
         private async void OnServerMessageReceived(string message, TcpClient client)
         {
@@ -156,22 +164,10 @@ namespace GGOverlay.Game
 
                     await HandleTriggerGroupRule(rule);
                 }
-                else if (message.StartsWith("PLAYERUPDATE:"))
+                else if (messageType == "PLAYERUPDATE")
                 {
-                    // Extract the serialized player info from the message
-                    string serializedPlayer = message.Substring("PLAYERUPDATE:".Length);
-                    PlayerInfo updatedPlayer = new PlayerInfo();
-
-                    try
-                    {
-                        // Deserialize the received player info
-                        updatedPlayer.Receive(serializedPlayer);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogMessage($"Error deserializing player info: {ex.Message}");
-                        return;
-                    }
+                    // Deserialize the player info
+                    PlayerInfo updatedPlayer = JsonConvert.DeserializeObject<PlayerInfo>(messageObject.Player.ToString());
 
                     // Check if the TcpClient already exists in the dictionary
                     if (_clientPlayerMap.ContainsKey(client))
@@ -204,6 +200,7 @@ namespace GGOverlay.Game
                 LogMessage($"Error processing message: {ex.Message}");
             }
         }
+
 
 
         // Handle client disconnections
@@ -240,12 +237,12 @@ namespace GGOverlay.Game
 
                 _players = playerList;
 
-                // Serialize the player list to a JSON string
-                string serializedPlayerList = JsonConvert.SerializeObject(playerList, Formatting.Indented);
+                // Create a PlayerListUpdateMessage
+                var messageObject = new PlayerListUpdateMessage { Players = playerList };
+                string serializedMessage = JsonConvert.SerializeObject(messageObject);
 
                 // Send the PlayerListUpdate message to all clients
-                string message = $"PlayerListUpdate:{serializedPlayerList}";
-                await _networkServer.BroadcastMessageAsync(message);
+                await _networkServer.BroadcastMessageAsync(serializedMessage);
                 LogMessage("Sent updated player list to all clients.");
             }
             catch (Exception ex)
@@ -253,6 +250,7 @@ namespace GGOverlay.Game
                 LogMessage($"Error sending player list update: {ex.Message}");
             }
         }
+
 
         public void RequestUIUpdate()
         {

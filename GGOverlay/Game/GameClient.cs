@@ -54,15 +54,21 @@ namespace GGOverlay.Game
             _networkClient.OnDisconnected += OnDisconnected;
         }
 
-        // Set the local player information
         public async void EditPlayer(string name, double drinkModifier)
         {
             _localPlayer = new PlayerInfo(name, drinkModifier);
             UserData.LocalPlayer = _localPlayer;
             UserData.Save(); // Save UserData
             UIUpdate?.Invoke();
-            await SendMessageAsync("PLAYERUPDATE:" + _localPlayer.Send());
+
+            // Create a PlayerUpdateMessage
+            var message = new PlayerUpdateMessage { Player = _localPlayer };
+            string serializedMessage = JsonConvert.SerializeObject(message);
+
+            // Send the serialized message
+            await SendMessageAsync(serializedMessage);
         }
+
 
         // Empty SetGameRules
         public async Task SetGameRules(string filepath)
@@ -109,7 +115,6 @@ namespace GGOverlay.Game
             }
         }
 
-        // Handle incoming messages from the server
         private void OnMessageReceived(string message)
         {
             LogMessage($"Message received: {message}");
@@ -119,14 +124,11 @@ namespace GGOverlay.Game
                 dynamic messageObject = JsonConvert.DeserializeObject(message);
                 string messageType = messageObject.MessageType;
 
-                // Check if the message is a game rules update
-                if (message.StartsWith("RULEUPDATE:"))
+                if (messageType == "RULEUPDATE")
                 {
-                    // Extract the serialized rules from the message
-                    string serializedRules = message.Substring("RULEUPDATE:".Length);
-
-                    // Receive and apply the game rules
-                    _gameRules.Receive(serializedRules);
+                    // Deserialize the rules
+                    List<Rule> rules = JsonConvert.DeserializeObject<List<Rule>>(messageObject.Rules.ToString());
+                    _gameRules.Rules = rules;
                     LogMessage("Game rules updated successfully.");
 
                     // Safely invoke UI updates on the main thread
@@ -135,38 +137,27 @@ namespace GGOverlay.Game
                         UIUpdate?.Invoke();
                     });
                 }
-                // Check if the message is a player list update
-                else if (message.StartsWith("PlayerListUpdate:"))
+                else if (messageType == "PLAYERLISTUPDATE")
                 {
-                    // Extract the serialized player list from the message
-                    string serializedPlayerList = message.Substring("PlayerListUpdate:".Length);
+                    // Deserialize the player list
+                    _players = JsonConvert.DeserializeObject<List<PlayerInfo>>(messageObject.Players.ToString()) ?? new List<PlayerInfo>();
+                    LogMessage("Player list updated successfully.");
 
-                    try
+                    // Update local player's drink count if applicable
+                    if (_localPlayer != null)
                     {
-                        // Deserialize the player list from the received JSON string
-                        _players = JsonConvert.DeserializeObject<List<PlayerInfo>>(serializedPlayerList) ?? new List<PlayerInfo>();
-                        LogMessage("Player list updated successfully.");
-
-                        // Update local player's drink count if applicable
-                        if (_localPlayer != null)
+                        var updatedLocalPlayer = _players.FirstOrDefault(p => p.Name == _localPlayer.Name);
+                        if (updatedLocalPlayer != null)
                         {
-                            var updatedLocalPlayer = _players.FirstOrDefault(p => p.Name == _localPlayer.Name);
-                            if (updatedLocalPlayer != null)
-                            {
-                                _localPlayer.DrinkCount = updatedLocalPlayer.DrinkCount;
-                            }
+                            _localPlayer.DrinkCount = updatedLocalPlayer.DrinkCount;
                         }
+                    }
 
-                        // Safely invoke UI updates on the main thread
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            UIUpdate?.Invoke();
-                        });
-                    }
-                    catch (Exception ex)
+                    // Safely invoke UI updates on the main thread
+                    Application.Current.Dispatcher.Invoke(() =>
                     {
-                        LogMessage($"Error updating player list: {ex.Message}");
-                    }
+                        UIUpdate?.Invoke();
+                    });
                 }
                 else if (messageType == "TRIGGERINDIVIDUALRULE")
                 {
@@ -201,6 +192,7 @@ namespace GGOverlay.Game
         }
 
 
+
         // Handle client disconnection
         private void OnDisconnected()
         {
@@ -232,27 +224,25 @@ namespace GGOverlay.Game
             UserData.Save(); // Save UserData when stopping
         }
 
-        // Implement TriggerGroupRule
-        public async void TriggerGroupRule(Rule rule)
-        {
-            // Serialize the rule
-            string serializedRule = JsonConvert.SerializeObject(rule);
-
-            // Send message to the server
-            string message = $"TRIGGERGROUPRULE:{serializedRule}";
-            await SendMessageAsync(message);
-        }
-
         // Implement TriggerIndividualRule
         public async void TriggerIndividualRule(Rule rule, PlayerInfo player)
         {
-            // Serialize the rule and player info
-            string serializedRule = JsonConvert.SerializeObject(rule);
-            string serializedPlayer = JsonConvert.SerializeObject(player);
+            var messageObject = new TriggerIndividualRuleMessage { Rule = rule, Player = player };
+            string serializedMessage = JsonConvert.SerializeObject(messageObject);
 
             // Send message to the server
-            string message = $"TRIGGERINDIVIDUALRULE:{serializedRule}:{serializedPlayer}";
-            await SendMessageAsync(message);
+            await SendMessageAsync(serializedMessage);
         }
+
+        // Implement TriggerGroupRule
+        public async void TriggerGroupRule(Rule rule)
+        {
+            var messageObject = new TriggerGroupRuleMessage { Rule = rule };
+            string serializedMessage = JsonConvert.SerializeObject(messageObject);
+
+            // Send message to the server
+            await SendMessageAsync(serializedMessage);
+        }
+
     }
 }
