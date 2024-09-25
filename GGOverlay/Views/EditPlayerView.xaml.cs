@@ -45,8 +45,8 @@ namespace GGOverlay
                 return;
             }
 
-            _game.EditPlayer(playerName, modifier.Value);
-            _game._localPlayer.DrinkCount = _drinkQuantity;
+            _game.EditPlayer(playerName, modifier.Value, _drinkQuantity);
+            
 
             _mainWindow.ShowLobbyView(_game); // Return to Lobby View
         }
