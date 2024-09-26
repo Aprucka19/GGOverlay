@@ -1,3 +1,4 @@
+// OverlaySettings.cs
 using GGOverlay.Game;
 using Newtonsoft.Json;
 using System.IO;
@@ -16,6 +17,10 @@ namespace GGOverlay
         public double WindowHeight { get; set; } = 400; // Default height matching LoadUserDataSettings
         public double WindowLeft { get; set; } = 50; // Default left
         public double WindowTop { get; set; } = 50; // Default top
+
+        // Added properties for opacity settings
+        public double TextOpacity { get; set; } = 1.0;
+        public double BackgroundOpacity { get; set; } = 1.0;
         // Add other settings as needed
     }
 
@@ -71,7 +76,10 @@ namespace GGOverlay
                 {
                     string json = File.ReadAllText(userDataPath);
                     UserData data = JsonConvert.DeserializeObject<UserData>(json) ?? new UserData();
-                    data.LocalPlayer.DrinkCount = 0;
+                    if (data.LocalPlayer != null)
+                    {
+                        data.LocalPlayer.DrinkCount = 0;
+                    }
                     return data;
                 }
                 catch (Exception ex)

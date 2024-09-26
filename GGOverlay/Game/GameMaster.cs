@@ -381,7 +381,17 @@ namespace GGOverlay.Game
 
         private string GetPlayerKey(PlayerInfo player)
         {
-            string serializedPlayer = JsonConvert.SerializeObject(player);
+            // Create an anonymous object with only the necessary properties
+            var keyObject = new
+            {
+                player.Name,
+                player.DrinkModifier
+            };
+
+            // Serialize the anonymous object to JSON
+            string serializedPlayer = JsonConvert.SerializeObject(keyObject);
+
+            // Compute and return the hash
             return ComputeHash(serializedPlayer);
         }
 

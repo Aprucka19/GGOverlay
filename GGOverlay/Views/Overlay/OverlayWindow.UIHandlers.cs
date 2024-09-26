@@ -39,6 +39,57 @@ namespace GGOverlay
             }
         }
 
+        // Variables for dragging the controls panel
+        private bool isControlsDragging = false;
+        private Point controlsClickPosition;
+        private Border draggedControls;
+
+        private void InteractiveControlsBackground_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!isInteractive)
+                return;
+
+            draggedControls = sender as Border;
+            if (draggedControls != null)
+            {
+                isControlsDragging = true;
+                controlsClickPosition = e.GetPosition(MainCanvas);
+                draggedControls.CaptureMouse();
+            }
+        }
+
+        private void InteractiveControlsBackground_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (isControlsDragging && draggedControls != null)
+            {
+                Point currentPosition = e.GetPosition(MainCanvas);
+                double offsetX = currentPosition.X - controlsClickPosition.X;
+                double offsetY = currentPosition.Y - controlsClickPosition.Y;
+
+                double newLeft = Canvas.GetLeft(draggedControls) + offsetX;
+                double newTop = Canvas.GetTop(draggedControls) + offsetY;
+
+                // Ensure the controls panel stays within the window bounds
+                newLeft = Math.Max(0, Math.Min(newLeft, MainCanvas.ActualWidth - draggedControls.ActualWidth));
+                newTop = Math.Max(0, Math.Min(newTop, MainCanvas.ActualHeight - draggedControls.ActualHeight));
+
+                Canvas.SetLeft(draggedControls, newLeft);
+                Canvas.SetTop(draggedControls, newTop);
+
+                controlsClickPosition = currentPosition;
+            }
+        }
+
+        private void InteractiveControlsBackground_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (isControlsDragging && draggedControls != null)
+            {
+                isControlsDragging = false;
+                draggedControls.ReleaseMouseCapture();
+                draggedControls = null;
+            }
+        }
+
         private void Section_MouseMove(object sender, MouseEventArgs e)
         {
             if (isDragging && draggedSection != null)
@@ -141,6 +192,25 @@ namespace GGOverlay
                 // Set the font size directly without animation
                 textBlock.FontSize = newFontSize;
             }
+
+            double buttonSize = 30 * scale; // Base size multiplied by scale
+            buttonSize = Math.Max(16, Math.Min(buttonSize, 100)); // Clamp between 16 and 100
+
+            SettingsButton.Width = buttonSize;
+            SettingsButton.Height = buttonSize;
+            SettingsButton.FontSize = buttonSize * 0.5; // Adjust font size accordingly
+
+            CloseOverlayButton.Width = buttonSize;
+            CloseOverlayButton.Height = buttonSize;
+            CloseOverlayButton.FontSize = buttonSize * 0.5;
+
+            ConfirmButton.Width = buttonSize;
+            ConfirmButton.Height = buttonSize;
+            ConfirmButton.FontSize = buttonSize * 0.5; // Adjust font size accordingly
+
+            CancelButton.Width = buttonSize;
+            CancelButton.Height = buttonSize;
+            CancelButton.FontSize = buttonSize * 0.5;
         }
 
         private IEnumerable<T> FindVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
@@ -165,7 +235,11 @@ namespace GGOverlay
 
         #endregion
 
-        #region Slider Logic
+        #region Opacity Logic
+
+        // Added current opacity variables
+        private double currentBackgroundOpacity = 1.0;
+        private double currentTextOpacity = 1.0;
 
         private void BackgroundOpacitySlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -177,7 +251,7 @@ namespace GGOverlay
         {
             isBackgroundSliderDragging = false;
             sliderTimer.Start(); // Start the timer when dragging stops
-            // SaveUserDataSettings(); // Removed from here
+            SaveUserDataSettings();
         }
 
         private void TextOpacitySlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -190,7 +264,7 @@ namespace GGOverlay
         {
             isTextSliderDragging = false;
             sliderTimer.Start(); // Start the timer when dragging stops
-            // SaveUserDataSettings(); // Removed from here
+            SaveUserDataSettings();
         }
 
         private void BackgroundOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -230,6 +304,8 @@ namespace GGOverlay
 
         private void SetBackgroundOpacity(double opacity)
         {
+            currentBackgroundOpacity = opacity;
+
             // Modify the background color's alpha channel based on opacity
             var currentBrush = UnifiedBorder.Background as SolidColorBrush;
             if (currentBrush != null)
@@ -239,20 +315,26 @@ namespace GGOverlay
                 currentBrush.Color = color;
             }
 
-            // Update player boxes' background opacity
-            foreach (var border in _playerBorders)
+            // Update punishment displays' background opacity
+            foreach (var child in PunishmentDisplayStackPanel.Children)
             {
-                if (border.Background is SolidColorBrush playerBrush)
+                if (child is Border punishmentBorder)
                 {
-                    Color color = playerBrush.Color;
-                    color.A = (byte)(opacity * 255);
-                    playerBrush.Color = color;
+                    var brush = punishmentBorder.Background as SolidColorBrush;
+                    if (brush != null)
+                    {
+                        Color color = brush.Color;
+                        color.A = (byte)(opacity * 255);
+                        brush.Color = color;
+                    }
                 }
             }
         }
 
         private void SetTextOpacity(double opacity)
         {
+            currentTextOpacity = opacity;
+
             // Iterate through all TextBlocks and set their opacity
             foreach (var textBlock in FindVisualChildren<TextBlock>(UnifiedBorder))
             {
@@ -279,17 +361,7 @@ namespace GGOverlay
             var brush = new SolidColorBrush(color);
             UnifiedBorder.Background = brush;
 
-            // Update player boxes' background colors to maintain their distinct colors with new opacity
-            double opacity = BackgroundOpacitySlider?.Value ?? 1.0;
-            foreach (var border in _playerBorders)
-            {
-                if (border.Background is SolidColorBrush playerBrush)
-                {
-                    Color baseColor = playerBrush.Color;
-                    // Assuming baseColor already has the intended color, just update alpha
-                    playerBrush.Color = Color.FromArgb((byte)(opacity * 255), baseColor.R, baseColor.G, baseColor.B);
-                }
-            }
+            // Removed updating player boxes' background colors to keep them at 100% opacity
         }
 
         private void SetTextColor(Color color)
@@ -604,7 +676,9 @@ namespace GGOverlay
                 WindowWidth = UnifiedBorder.Width,
                 WindowHeight = UnifiedBorder.Height,
                 WindowLeft = Canvas.GetLeft(UnifiedBorder),
-                WindowTop = Canvas.GetTop(UnifiedBorder)
+                WindowTop = Canvas.GetTop(UnifiedBorder),
+                TextOpacity = TextOpacitySlider.Value,
+                BackgroundOpacity = BackgroundOpacitySlider.Value
                 // Add other settings as needed
             };
         }
@@ -622,6 +696,14 @@ namespace GGOverlay
             // Apply background color
             Color backgroundColor = (Color)ColorConverter.ConvertFromString(settings.BackgroundColor);
             SetBackgroundColor(backgroundColor);
+
+            // Apply Text Opacity
+            TextOpacitySlider.Value = settings.TextOpacity;
+            SetTextOpacity(settings.TextOpacity);
+
+            // Apply Background Opacity
+            BackgroundOpacitySlider.Value = settings.BackgroundOpacity;
+            SetBackgroundOpacity(settings.BackgroundOpacity);
 
             // Apply UnifiedBorder size
             UnifiedBorder.Width = settings.WindowWidth;
@@ -672,5 +754,34 @@ namespace GGOverlay
         }
 
         #endregion
+
+        #region Settings Button Logic
+
+        private void SettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (InteractiveControlsBackground.Visibility == Visibility.Visible)
+            {
+                InteractiveControlsBackground.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                InteractiveControlsBackground.Visibility = Visibility.Visible;
+
+                // Set initial position if needed
+                if (double.IsNaN(Canvas.GetLeft(InteractiveControlsBackground)) && double.IsNaN(Canvas.GetTop(InteractiveControlsBackground)))
+                {
+                    // Position it near the settings button
+                    var position = SettingsButton.TranslatePoint(new Point(0, 0), MainCanvas);
+                    Canvas.SetLeft(InteractiveControlsBackground, position.X);
+                    Canvas.SetTop(InteractiveControlsBackground, position.Y + SettingsButton.ActualHeight + 5);
+                }
+            }
+        }
+
+
+
+        #endregion
+
+        // Rest of your code...
     }
 }

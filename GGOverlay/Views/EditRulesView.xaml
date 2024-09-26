@@ -118,7 +118,7 @@
                 <!-- Example Inputs -->
                 <TextBlock Grid.Column="0" Text="Group      " Margin="5" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="When you complete a mission, everyone drinks." Margin="45,5,5,5"/>
-                <TextBlock Grid.Column="2" Text="Everyone drinks {0}" Margin="25,5,40,5"/>
+                <TextBlock Grid.Column="2" Text="Everyone drinks {1}" Margin="25,5,40,5"/>
                 <TextBlock Grid.Column="3" Text="25" Margin="5,5,80,5"/>
             </Grid>
             <Grid Margin="5">

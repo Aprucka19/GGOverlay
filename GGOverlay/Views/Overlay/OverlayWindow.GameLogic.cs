@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using GGOverlay.Game;
 using System.Linq;
+using System.Windows.Data;
 
 namespace GGOverlay
 {
@@ -29,6 +30,14 @@ namespace GGOverlay
                 // Set background color
                 var backgroundColor = (Color)ColorConverter.ConvertFromString(userData.OverlaySettings.BackgroundColor);
                 SetBackgroundColor(backgroundColor);
+
+                // Set Text Opacity
+                TextOpacitySlider.Value = userData.OverlaySettings.TextOpacity;
+                SetTextOpacity(userData.OverlaySettings.TextOpacity);
+
+                // Set Background Opacity
+                BackgroundOpacitySlider.Value = userData.OverlaySettings.BackgroundOpacity;
+                SetBackgroundOpacity(userData.OverlaySettings.BackgroundOpacity);
 
                 // Set UnifiedBorder size
                 UnifiedBorder.Width = userData.OverlaySettings.WindowWidth;
@@ -68,6 +77,12 @@ namespace GGOverlay
             var backgroundColor = currentBackgroundColor;
             userData.OverlaySettings.BackgroundColor = backgroundColor.ToString();
 
+            // Set Text Opacity
+            userData.OverlaySettings.TextOpacity = TextOpacitySlider.Value;
+
+            // Set Background Opacity
+            userData.OverlaySettings.BackgroundOpacity = BackgroundOpacitySlider.Value;
+
             // Set UnifiedBorder size
             userData.OverlaySettings.WindowWidth = UnifiedBorder.Width;
             userData.OverlaySettings.WindowHeight = UnifiedBorder.Height;
@@ -89,10 +104,10 @@ namespace GGOverlay
                 bool alternate = false;
                 foreach (var rule in _game._gameRules.Rules)
                 {
-                    // Create a Border for the rule
+                    // Create a Border for the rule with consistent BorderThickness
                     Border ruleBorder = new Border
                     {
-                        BorderThickness = new Thickness(1),
+                        BorderThickness = new Thickness(2), // Consistent thickness
                         BorderBrush = Brushes.White,
                         CornerRadius = new CornerRadius(3),
                         Margin = new Thickness(2),
@@ -110,7 +125,8 @@ namespace GGOverlay
                         FontSize = 14 * fontScaleMultiplier, // Apply font scale
                         Margin = new Thickness(0),
                         TextWrapping = TextWrapping.Wrap,
-                        FontFamily = new FontFamily(currentFont)
+                        FontFamily = new FontFamily(currentFont),
+                        Opacity = currentTextOpacity // Set text opacity
                     };
 
                     ruleBorder.Child = ruleText;
@@ -124,6 +140,9 @@ namespace GGOverlay
                 }
             }
         }
+
+
+
 
         private void RuleBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -141,43 +160,8 @@ namespace GGOverlay
             }
         }
 
-        private void SelectRule(Rule rule, Border border)
-        {
-            // Deselect previous rule
-            if (selectedRuleBorder != null)
-            {
-                selectedRuleBorder.BorderBrush = Brushes.White;
-                selectedRuleBorder.BorderThickness = new Thickness(1);
-            }
 
-            // Select new rule
-            selectedRule = rule;
-            selectedRuleBorder = border;
 
-            selectedRuleBorder.BorderBrush = Brushes.Yellow;
-            selectedRuleBorder.BorderThickness = new Thickness(3);
-
-            // If the rule is a group punishment, deselect any selected player
-            if (selectedRule.IsGroupPunishment)
-            {
-                DeselectPlayer();
-            }
-
-            UpdateConfirmButtonVisibility();
-        }
-
-        private void DeselectRule()
-        {
-            if (selectedRuleBorder != null)
-            {
-                selectedRuleBorder.BorderBrush = Brushes.White;
-                selectedRuleBorder.BorderThickness = new Thickness(1);
-                selectedRuleBorder = null;
-            }
-            selectedRule = null;
-        }
-
-        // OverlayWindow.GameLogic.cs
         private void LoadLobbyMembers()
         {
             // Load lobby members into LobbyMembersPanel
@@ -185,8 +169,6 @@ namespace GGOverlay
             {
                 LobbyMembersPanel.Children.Clear();
                 _playerBorders.Clear();
-
-                double backgroundOpacity = BackgroundOpacitySlider?.Value ?? 1.0;
 
                 // Create a list to hold players, with local player first if exists
                 List<PlayerInfo> players = new List<PlayerInfo>();
@@ -209,12 +191,13 @@ namespace GGOverlay
 
                     // Assign color based on index
                     Color playerColor = _playerColors[i % _playerColors.Count];
-                    Color colorWithOpacity = Color.FromArgb((byte)(backgroundOpacity * 255), playerColor.R, playerColor.G, playerColor.B);
+                    Color colorWithOpacity = Color.FromArgb((byte)(255), playerColor.R, playerColor.G, playerColor.B);
 
-                    // Create a Border for the player
+                    // Create a Border for the player with consistent BorderThickness
                     Border playerBorder = new Border
                     {
-                        BorderThickness = new Thickness(0),
+                        BorderThickness = new Thickness(2), // Consistent thickness
+                        BorderBrush = Brushes.Transparent, // Default border brush
                         CornerRadius = new CornerRadius(5),
                         Padding = new Thickness(5),
                         Background = new SolidColorBrush(colorWithOpacity),
@@ -239,7 +222,8 @@ namespace GGOverlay
                         FontFamily = new FontFamily(currentFont),
                         Margin = new Thickness(0, 0, 0, 2),
                         TextWrapping = TextWrapping.Wrap,
-                        TextAlignment = TextAlignment.Center
+                        TextAlignment = TextAlignment.Center,
+                        Opacity = currentTextOpacity // Set text opacity
                     };
 
                     // Drink Count Text
@@ -253,7 +237,8 @@ namespace GGOverlay
                         FontSize = 12 * fontScaleMultiplier,
                         FontFamily = new FontFamily(currentFont),
                         TextWrapping = TextWrapping.Wrap,
-                        TextAlignment = TextAlignment.Center
+                        TextAlignment = TextAlignment.Center,
+                        Opacity = currentTextOpacity // Set text opacity
                     };
 
                     playerStack.Children.Add(nameText);
@@ -276,6 +261,9 @@ namespace GGOverlay
         }
 
 
+
+
+
         private void PlayerBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (!isInteractive)
@@ -294,13 +282,45 @@ namespace GGOverlay
         }
 
 
+        private void SelectRule(Rule rule, Border border)
+        {
+            // Deselect previous rule
+            if (selectedRuleBorder != null)
+            {
+                selectedRuleBorder.BorderBrush = Brushes.White; // Reset to default color
+            }
+
+            // Select new rule
+            selectedRule = rule;
+            selectedRuleBorder = border;
+
+            selectedRuleBorder.BorderBrush = Brushes.Yellow; // Highlight selected rule
+
+            // If the rule is a group punishment, deselect any selected player
+            if (selectedRule.IsGroupPunishment)
+            {
+                DeselectPlayer();
+            }
+
+            UpdateConfirmButtonVisibility();
+        }
+
+        private void DeselectRule()
+        {
+            if (selectedRuleBorder != null)
+            {
+                selectedRuleBorder.BorderBrush = Brushes.White; // Reset to default color
+                selectedRuleBorder = null;
+            }
+            selectedRule = null;
+        }
+
         private void SelectPlayer(PlayerInfo player, Border border)
         {
             // Deselect previous player
             if (selectedPlayerBorder != null)
             {
-                selectedPlayerBorder.BorderBrush = null;
-                selectedPlayerBorder.BorderThickness = new Thickness(0);
+                selectedPlayerBorder.BorderBrush = Brushes.Transparent; // Reset to default color
             }
 
             // If a group rule is selected, deselect it
@@ -313,8 +333,7 @@ namespace GGOverlay
             selectedPlayer = player;
             selectedPlayerBorder = border;
 
-            selectedPlayerBorder.BorderBrush = Brushes.Yellow;
-            selectedPlayerBorder.BorderThickness = new Thickness(3);
+            selectedPlayerBorder.BorderBrush = Brushes.Yellow; // Highlight selected player
 
             UpdateConfirmButtonVisibility();
         }
@@ -323,8 +342,7 @@ namespace GGOverlay
         {
             if (selectedPlayerBorder != null)
             {
-                selectedPlayerBorder.BorderBrush = null;
-                selectedPlayerBorder.BorderThickness = new Thickness(0);
+                selectedPlayerBorder.BorderBrush = Brushes.Transparent; // Reset to default color
                 selectedPlayerBorder = null;
             }
             selectedPlayer = null;
@@ -422,13 +440,20 @@ namespace GGOverlay
 
         private void CreatePunishmentDisplay(Rule rule, PlayerInfo player = null)
         {
+            // Adjust the background color's opacity by modifying the alpha channel
+            Color backgroundColorWithOpacity = Color.FromArgb(
+                (byte)(currentBackgroundOpacity * 255),
+                currentBackgroundColor.R,
+                currentBackgroundColor.G,
+                currentBackgroundColor.B
+            );
+
             // Create a new Border for the punishment display
             Border punishmentBorder = new Border
             {
                 CornerRadius = new CornerRadius(10),
                 Padding = new Thickness(20),
-                Background = new SolidColorBrush(currentBackgroundColor),
-                Opacity = BackgroundOpacitySlider.Value,
+                Background = new SolidColorBrush(backgroundColorWithOpacity), // Set background with adjusted opacity
                 Margin = new Thickness(0, 0, 0, 10), // Add margin between punishment displays
                 IsHitTestVisible = isInteractive
             };
@@ -444,7 +469,7 @@ namespace GGOverlay
                 FontSize = 14 * fontScaleMultiplier * 3, // Adjust font size for emphasis
                 Foreground = new SolidColorBrush(currentTextColor),
                 FontFamily = new FontFamily(currentFont),
-                Opacity = TextOpacitySlider.Value
+                Opacity = currentTextOpacity // Set text opacity
             };
 
             // Get the formatted punishment description
@@ -497,6 +522,7 @@ namespace GGOverlay
                 individualPunishmentTimer.Start();
             }
         }
+
 
 
     }

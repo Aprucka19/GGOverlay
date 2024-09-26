@@ -24,10 +24,6 @@ namespace GGOverlay
         private const uint MOD_SHIFT = 0x0004;
         private const uint VK_BACKTICK = 0xC0; // VK_OEM_3 for '`' key
 
-        // Constants for extended window styles
-        private const int GWL_EXSTYLE = -20;
-        private const int WS_EX_TRANSPARENT = 0x00000020;
-
         // Timer for auto-hiding the punishment display
         private DispatcherTimer punishmentTimer;
 
@@ -40,12 +36,6 @@ namespace GGOverlay
 
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
-
-        [DllImport("user32.dll")]
-        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-
-        [DllImport("user32.dll")]
-        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
         // Variables for Sliders
         private bool isBackgroundSliderDragging = false;
@@ -81,16 +71,19 @@ namespace GGOverlay
 
         public OverlayWindow(IGameInterface game)
         {
+            InitializeComponent(); // Ensure this is called
+
             // Assign _game first to prevent null reference issues
             _game = game ?? throw new ArgumentNullException(nameof(game));
-
-            InitializeComponent();
 
             // Set Window to cover the entire primary screen
             this.Width = SystemParameters.PrimaryScreenWidth;
             this.Height = SystemParameters.PrimaryScreenHeight;
             this.Left = 0;
             this.Top = 0;
+
+            // Load settings from UserData
+            LoadUserDataSettings();
 
             // Load game rules and lobby members
             LoadGameRules();
@@ -116,18 +109,11 @@ namespace GGOverlay
             // Subscribe to size change event to adjust font sizes
             this.SizeChanged += OverlayWindow_SizeChanged;
 
-            // Remove the initial interactive mode setting from here
-            ToggleMode();
-            if (!isInteractive)
-            {
-                ToggleMode();
-            }
-
             // Initialize ComboBoxes
             InitializeComboBoxes();
 
-            // Load settings from UserData
-            LoadUserDataSettings();
+            // Set interactive mode
+            SetInteractiveMode();
         }
 
         private void OverlayWindow_Loaded(object sender, RoutedEventArgs e)
@@ -171,13 +157,11 @@ namespace GGOverlay
             if (isInteractive)
             {
                 SetBackgroundMode();
-                InteractiveControlsBackground.Visibility = Visibility.Collapsed;
                 UnifiedResizeThumb.Visibility = Visibility.Collapsed; // Hide the ResizeThumb
             }
             else
             {
                 SetInteractiveMode();
-                InteractiveControlsBackground.Visibility = Visibility.Visible;
                 UnifiedResizeThumb.Visibility = Visibility.Visible; // Show the ResizeThumb
             }
 
@@ -214,11 +198,33 @@ namespace GGOverlay
             }
         }
 
-
         private void SetInteractiveMode()
         {
             // Make the window interactive
             isInteractive = true;
+
+            foreach (var child in GameRulesPanel.Children)
+            {
+                if (child is Border ruleBorder)
+                {
+                    ruleBorder.IsHitTestVisible = isInteractive;
+                }
+            }
+
+            // Update player borders' IsHitTestVisible
+            foreach (var border in _playerBorders)
+            {
+                border.IsHitTestVisible = isInteractive;
+            }
+
+            // Update punishment displays' IsHitTestVisible
+            foreach (var child in PunishmentDisplayStackPanel.Children)
+            {
+                if (child is Border punishmentBorder)
+                {
+                    punishmentBorder.IsHitTestVisible = isInteractive;
+                }
+            }
 
             // Update IsHitTestVisible on main elements
             MainCanvas.IsHitTestVisible = true;
@@ -227,8 +233,14 @@ namespace GGOverlay
             this.Topmost = true;
             this.Focusable = true;
             this.Activate();
-        }
 
+            // Show Settings button
+            SettingsButton.Visibility = Visibility.Visible;
+            CloseOverlayButton.Visibility = Visibility.Visible;
+
+            // Hide controls box initially
+            InteractiveControlsBackground.Visibility = Visibility.Collapsed;
+        }
 
         private void SetBackgroundMode()
         {
@@ -247,14 +259,17 @@ namespace GGOverlay
                 }
             }
 
-            // Hide interactive controls
+            // Hide interactive controls and settings button
             InteractiveControlsBackground.Visibility = Visibility.Collapsed;
+            SettingsButton.Visibility = Visibility.Collapsed;
+            CloseOverlayButton.Visibility = Visibility.Collapsed;
 
             // Clear selections and hide buttons
             DeselectAll();
             ConfirmButton.Visibility = Visibility.Collapsed;
             CancelButton.Visibility = Visibility.Collapsed;
         }
+
 
 
         private void OverlayWindow_SizeChanged(object sender, SizeChangedEventArgs e)
