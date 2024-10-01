@@ -8,6 +8,7 @@ using System.Windows;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using System.Timers;
 
 namespace GGOverlay.Game
 {
@@ -32,10 +33,16 @@ namespace GGOverlay.Game
         // Last rule trigger times
         private Dictionary<string, DateTime> _lastRuleTriggerTime;
 
+        // Timer-related fields
+        private System.Timers.Timer _timer;
+        public double _elapsedMinutes { get; set; }
+
         public event Action<string> OnLog;
         public event Action UIUpdate;
         public event Action<Rule, PlayerInfo> OnIndividualPunishmentTriggered;
         public event Action<Rule> OnGroupPunishmentTriggered;
+        private int _paceHitCount = 0;
+
 
         // Added OnDisconnect event
         public event Action OnDisconnect;
@@ -48,6 +55,12 @@ namespace GGOverlay.Game
             _gameRules = new GameRules();
             _clientPlayerMap = new Dictionary<TcpClient, PlayerInfo>();
             _lastRuleTriggerTime = new Dictionary<string, DateTime>();
+
+            // Initialize timer
+            _timer = new System.Timers.Timer(60000); // Timer ticks every 60,000 milliseconds (1 minute)
+            _timer.Elapsed += OnTimerElapsed;
+            _timer.AutoReset = true;
+            _elapsedMinutes = 0;
 
             // Load UserData
             UserData = UserData.Load();
@@ -71,8 +84,106 @@ namespace GGOverlay.Game
             _networkServer.OnClientDisconnected += OnClientDisconnected; // Subscribe to client disconnection
         }
 
+        // Method to start the timer
+        public void StartTimer()
+        {
+            if (!_timer.Enabled)
+            {
+                _elapsedMinutes = 0; // Reset elapsed time
+                _timer.Start();
+                LogMessage("Timer started.");
+            }
+        }
+
+        // Method to stop the timer
+        public void StopTimer()
+        {
+            if (_timer.Enabled)
+            {
+                _timer.Stop();
+                _elapsedMinutes = 0;
+                LogMessage("Timer stopped.");
+            }
+        }
+
+        private async void OnTimerElapsed(object sender, ElapsedEventArgs e)
+        {
+            // Check if _gameRules is not null
+            if (_gameRules == null)
+            {
+                // Log message or handle the case where _gameRules has not been assigned yet
+                LogMessage("Game rules have not been assigned.");
+                return;
+            }
+
+            _elapsedMinutes += 1;
+
+            // Send the updated _elapsedMinutes to all clients
+            await SendElapsedMinutesUpdateAsync();
+
+            if (_gameRules.Pace > 0 && _elapsedMinutes % _gameRules.Pace == 0)
+            {
+                _paceHitCount++;
+                // Trigger the function (placeholder)
+                OnPaceReached();
+            }
+        }
+
+        // New method to send _elapsedMinutes to clients
+        private async Task SendElapsedMinutesUpdateAsync()
+        {
+            try
+            {
+                var messageObject = new ElapsedMinutesUpdateMessage { ElapsedMinutes = _elapsedMinutes };
+                string serializedMessage = JsonConvert.SerializeObject(messageObject);
+
+                await _networkServer.BroadcastMessageAsync(serializedMessage);
+                LogMessage($"Sent elapsed minutes update: {_elapsedMinutes} minutes.");
+            }
+            catch (Exception ex)
+            {
+                LogMessage($"Error sending elapsed minutes update: {ex.Message}");
+            }
+        }
+
+
+        private async Task OnPaceReached()
+        {
+            // Loop through each player
+            foreach (var player in _players)
+            {
+                // Calculate the expected drink count
+                double expectedDrinkCount = _gameRules.PaceQuantity * player.DrinkModifier * _paceHitCount;
+
+                // If player's drink count is less than expected
+                if (player.DrinkCount < expectedDrinkCount)
+                {
+                    // Calculate the difference
+                    int difference = (int)Math.Ceiling((expectedDrinkCount - player.DrinkCount) / player.DrinkModifier);
+
+                    // Create a custom rule
+                    Rule customRule = new Rule
+                    {
+                        RuleDescription = "Pace Punishment",
+                        PunishmentDescription = "{0} needs to keep pace and drink {1}.",
+                        PunishmentQuantity = difference,
+                        IsGroupPunishment = false
+
+                    };
+
+                    // Log the punishment
+                    LogMessage($"Pace Punishment for {player.Name}: Needs to drink {difference} to keep pace.");
+
+                    // Handle the individual punishment
+                    await HandleTriggerIndividualRule(customRule, player);
+                }
+            }
+        }
+
+
         public async Task SetGameRules(string filepath)
         {
+            StopTimer();
             _gameRules.LoadFromFile(filepath);
             UIUpdate?.Invoke();
             await BroadcastMessageAsync("RULEUPDATE:" + _gameRules.Send());
@@ -138,6 +249,7 @@ namespace GGOverlay.Game
             {
                 await SendPlayerListUpdateAsync();
             }
+            await SendElapsedMinutesUpdateAsync();
         }
 
 
@@ -276,6 +388,7 @@ namespace GGOverlay.Game
         {
             _networkServer.Stop();
             UserData.Save(); // Save UserData when stopping
+            StopTimer();
         }
 
         private async Task HandleTriggerIndividualRule(Rule rule, PlayerInfo player)
@@ -416,6 +529,27 @@ namespace GGOverlay.Game
         {
             // Since GameMaster is the server, we handle the trigger directly
             _ = HandleTriggerIndividualRule(rule, player);
+        }
+
+        public void FinishDrink()
+        {
+            // Calculate the punishment quantity
+            int desiredSips = 20 - (_localPlayer.DrinkCount % 20);
+
+            double unroundedPunishmentQuantity = desiredSips / _localPlayer.DrinkModifier;
+            int punishmentQuantity = (int)Math.Round(unroundedPunishmentQuantity, MidpointRounding.AwayFromZero);
+
+            // Create the new individual rule
+            Rule finishDrinkRule = new Rule
+            {
+                RuleDescription = "Finish Drink",
+                PunishmentDescription = "{0} drank {1} to finish their drink.",
+                PunishmentQuantity = punishmentQuantity,
+                IsGroupPunishment = false
+            };
+
+            // Handle the trigger directly
+            _ = HandleTriggerIndividualRule(finishDrinkRule, _localPlayer);
         }
     }
 }

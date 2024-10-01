@@ -40,6 +40,8 @@
             <!-- Connection Buttons -->
             <RowDefinition Height="Auto"/>
             <!-- Lobby Section -->
+            <RowDefinition Height="Auto"/>
+            <!-- Drinking Pace Section -->
             <RowDefinition Height="*"/>
             <!-- Game Rules Display -->
         </Grid.RowDefinitions>
@@ -60,8 +62,19 @@
             </WrapPanel>
         </StackPanel>
 
+        <!-- New Drinking Pace Section -->
+        <TextBlock x:Name="DrinkingPaceTextBlock"
+                   Grid.Row="2"
+                   Margin="0,0,0,10"
+                   Text=""
+                   Visibility="Collapsed"
+                   FontWeight="Bold"
+                   Foreground="#E6E6E6"
+                   FontFamily="Comic Sans"
+                   FontSize="18"/>
+
         <!-- Game Rules Display -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
             <StackPanel Margin="0,0,0,10" Name="GameRulesSection" Background="#2D2D30">
                 <!-- The rules will be dynamically added here -->
             </StackPanel>

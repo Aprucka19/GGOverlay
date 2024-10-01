@@ -211,6 +211,23 @@ namespace GGOverlay
             CancelButton.Width = buttonSize;
             CancelButton.Height = buttonSize;
             CancelButton.FontSize = buttonSize * 0.5;
+
+            FinishDrinkButton.Width = buttonSize;
+            FinishDrinkButton.Height = buttonSize;
+            FinishDrinkButton.FontSize = buttonSize * 0.5;
+
+            if (FinishDrinkButton.Content is TextBlock finishDrinkTextBlock)
+            {
+                finishDrinkTextBlock.FontSize = buttonSize * 0.5;
+            }
+
+            // Adjust font size of TimerTextBlock
+            if (TimerTextBlock != null)
+            {
+                double newFontSize = 14 * scale;
+                newFontSize = Math.Max(2, Math.Min(newFontSize, 300));
+                TimerTextBlock.FontSize = newFontSize;
+            }
         }
 
         private IEnumerable<T> FindVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
@@ -349,6 +366,10 @@ namespace GGOverlay
             {
                 textBlock.Opacity = opacity;
             }
+            if (TimerTextBlock != null)
+            {
+                TimerTextBlock.Opacity = opacity;
+            }
         }
 
         #endregion
@@ -370,6 +391,12 @@ namespace GGOverlay
             foreach (var textBlock in FindVisualChildren<TextBlock>(UnifiedBorder))
             {
                 textBlock.Foreground = new SolidColorBrush(color);
+            }
+
+            // Update TimerTextBlock's color
+            if (TimerTextBlock != null)
+            {
+                TimerTextBlock.Foreground = new SolidColorBrush(color);
             }
         }
 
@@ -466,6 +493,12 @@ namespace GGOverlay
             foreach (var textBlock in FindVisualChildren<TextBlock>(UnifiedBorder))
             {
                 textBlock.FontFamily = new FontFamily(fontName);
+            }
+
+            // Update TimerTextBlock's font family
+            if (TimerTextBlock != null)
+            {
+                TimerTextBlock.FontFamily = new FontFamily(fontName);
             }
         }
 

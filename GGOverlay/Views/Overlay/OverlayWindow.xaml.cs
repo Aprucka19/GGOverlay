@@ -24,6 +24,7 @@ namespace GGOverlay
         private const uint MOD_SHIFT = 0x0004;
         private const uint VK_BACKTICK = 0xC0; // VK_OEM_3 for '`' key
 
+
         // Timer for auto-hiding the punishment display
         private DispatcherTimer punishmentTimer;
 
@@ -112,8 +113,30 @@ namespace GGOverlay
             // Initialize ComboBoxes
             InitializeComboBoxes();
 
+
+            // Initialize TimerTextBlock properties if needed
+            TimerTextBlock.FontSize = 14 * fontScaleMultiplier;
+            TimerTextBlock.Foreground = new SolidColorBrush(currentTextColor);
+            TimerTextBlock.FontFamily = new FontFamily(currentFont);
+            TimerTextBlock.Opacity = currentTextOpacity;
+
             // Set interactive mode
             SetInteractiveMode();
+
+
+
+            // Update the timer display with the initial value
+            UpdateTimerDisplay();
+        }
+
+
+        private void UpdateTimerDisplay()
+        {
+            // Convert _game._elapsedMinutes to H:MM format
+            int totalMinutes = (int)Math.Round(_game._elapsedMinutes);
+            int hours = totalMinutes / 60;
+            int minutes = totalMinutes % 60;
+            TimerTextBlock.Text = $"{hours}:{minutes:D2}";
         }
 
         private void OverlayWindow_Loaded(object sender, RoutedEventArgs e)
@@ -226,6 +249,11 @@ namespace GGOverlay
                 }
             }
 
+            if (TimerTextBlock != null)
+            {
+                TimerTextBlock.Visibility = Visibility.Visible;
+            }
+
             // Update IsHitTestVisible on main elements
             MainCanvas.IsHitTestVisible = true;
 
@@ -237,6 +265,7 @@ namespace GGOverlay
             // Show Settings button
             SettingsButton.Visibility = Visibility.Visible;
             CloseOverlayButton.Visibility = Visibility.Visible;
+            FinishDrinkButton.Visibility = Visibility.Visible;
 
             // Hide controls box initially
             InteractiveControlsBackground.Visibility = Visibility.Collapsed;
@@ -259,10 +288,16 @@ namespace GGOverlay
                 }
             }
 
+            if (TimerTextBlock != null)
+            {
+                TimerTextBlock.Visibility = Visibility.Collapsed;
+            }
+
             // Hide interactive controls and settings button
             InteractiveControlsBackground.Visibility = Visibility.Collapsed;
             SettingsButton.Visibility = Visibility.Collapsed;
             CloseOverlayButton.Visibility = Visibility.Collapsed;
+            FinishDrinkButton.Visibility = Visibility.Collapsed;
 
             // Clear selections and hide buttons
             DeselectAll();
@@ -270,7 +305,13 @@ namespace GGOverlay
             CancelButton.Visibility = Visibility.Collapsed;
         }
 
-
+        private void FinishDrinkButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_game != null)
+            {
+                _game.FinishDrink();
+            }
+        }
 
         private void OverlayWindow_SizeChanged(object sender, SizeChangedEventArgs e)
         {

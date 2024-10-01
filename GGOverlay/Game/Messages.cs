@@ -57,3 +57,12 @@ public class TriggerGroupRuleMessage : Message
         MessageType = "TRIGGERGROUPRULE";
     }
 }
+
+public class ElapsedMinutesUpdateMessage : Message
+{
+    public ElapsedMinutesUpdateMessage()
+    {
+        MessageType = "ELAPSEDMINUTESUPDATE";
+    }
+    public double ElapsedMinutes { get; set; }
+}

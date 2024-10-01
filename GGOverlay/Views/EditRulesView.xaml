@@ -29,6 +29,35 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="#E6E6E6"/>
+            <!-- Default Foreground when unchecked -->
+            <Setter Property="Background" Value="#444444"/>
+            <Setter Property="FontFamily" Value="Comic Sans"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="BorderBrush" Value="#5A5A5A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="5,3"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <!-- Trigger for when the toggle is checked -->
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#555555"/>
+                    <!-- Optionally, adjust Foreground on mouse over if needed -->
+                </Trigger>
+                <!-- Trigger for when the button is disabled -->
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Foreground" Value="#444444"/>
+                    <Setter Property="Background" Value="#333333"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <Style TargetType="TextBox">
             <Setter Property="Foreground" Value="#E6E6E6"/>
             <Setter Property="Background" Value="#444444"/>
@@ -45,6 +74,7 @@
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Margin" Value="5"/>
         </Style>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </UserControl.Resources>
     <Grid Margin="10">
         <Grid.RowDefinitions>
@@ -52,6 +82,8 @@
             <!-- Top Buttons -->
             <RowDefinition Height="Auto"/>
             <!-- Filename Display -->
+            <RowDefinition Height="Auto"/>
+            <!-- New Drink Pace Row -->
             <RowDefinition Height="Auto"/>
             <!-- Example Section -->
             <RowDefinition Height="*"/>
@@ -70,9 +102,34 @@
         <!-- Filename Display -->
         <TextBlock Grid.Row="1" Name="FileNameTextBlock" Text="Unnamed Rule Set" FontWeight="Bold" FontSize="16" Margin="5"/>
 
+        <!-- New Drink Pace Row -->
+        <Grid Grid.Row="2" Margin="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <!-- Drink Pace Toggle -->
+            <ToggleButton x:Name="DrinkPaceToggle" Content="Drink Pace" VerticalAlignment="Center" Margin="5"
+                          Checked="DrinkPaceToggle_Checked" Unchecked="DrinkPaceToggle_Unchecked"/>
+            <!-- Pace (minutes) Label and TextBox -->
+            <TextBlock Grid.Column="1" Text="Pace (minutes):" VerticalAlignment="Center" Margin="10,0,0,0"
+                       Visibility="{Binding IsChecked, ElementName=DrinkPaceToggle, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <TextBox Grid.Column="2" x:Name="PaceTextBox" Width="50" Margin="5"
+                     Visibility="{Binding IsChecked, ElementName=DrinkPaceToggle, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <!-- Quantity (sips) Label and TextBox -->
+            <TextBlock Grid.Column="3" Text="Quantity (sips):" VerticalAlignment="Center" Margin="10,0,0,0"
+                       Visibility="{Binding IsChecked, ElementName=DrinkPaceToggle, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <TextBox Grid.Column="4" x:Name="PaceQuantityTextBox" Width="50" Margin="5"
+                     Visibility="{Binding IsChecked, ElementName=DrinkPaceToggle, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        </Grid>
+
         <!-- Example Section -->
-        <StackPanel Grid.Row="2" Margin="5" Background="#333333" Name="ExampleSection" Visibility="Collapsed">
-            <TextBlock Text="Example:" FontWeight="Bold" FontSize="16"/>
+        <StackPanel Grid.Row="3" Margin="5" Background="#333333" Name="ExampleSection" Visibility="Collapsed">
+            <TextBlock Text="Drink Pace: When enabled, after every {x} mintues, if the player has not finished {y} sips (since last check}, they will be told to sip enough to reach x/y rate" FontWeight="Bold" FontSize="16"/>
+            <TextBlock Text="Example Rules:" FontWeight="Bold" FontSize="16"/>
             <Grid Margin="5">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -133,7 +190,7 @@
         </StackPanel>
 
         <!-- Rules List -->
-        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto">
             <StackPanel>
                 <!-- Column Headers -->
                 <Grid Margin="5" Background="#444444">
@@ -183,8 +240,9 @@
             </StackPanel>
         </ScrollViewer>
 
+
         <!-- Bottom Buttons -->
-        <StackPanel Orientation="Horizontal" Grid.Row="4" HorizontalAlignment="Right">
+        <StackPanel Orientation="Horizontal" Grid.Row="6" HorizontalAlignment="Right">
             <Button Content="Save" Click="SaveButton_Click" Width="100"/>
             <Button Content="Cancel" Click="CancelButton_Click" Width="100"/>
         </StackPanel>

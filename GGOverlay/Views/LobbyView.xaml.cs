@@ -43,6 +43,11 @@ namespace GGOverlay
             // Open the Overlay window
             OverlayWindow overlay = new OverlayWindow(_game);
             overlay.Show();
+
+            if (_game is GameMaster gameMaster)
+            {
+                gameMaster.StartTimer();
+            }
         }
 
 
@@ -277,6 +282,30 @@ namespace GGOverlay
         {
             UpdatePlayerInfoDisplay();
             UpdateGameRulesDisplay();
+            UpdateDrinkingPaceDisplay();
+        }
+
+        private void UpdateDrinkingPaceDisplay()
+        {
+            if (_game != null && _game._gameRules != null && _game._gameRules.Pace > 0)
+            {
+                // Pace is set, make the TextBlock visible
+                DrinkingPaceTextBlock.Visibility = Visibility.Visible;
+
+                // Get the formatted drink description
+                int paceQuantity = _game._gameRules.PaceQuantity;
+
+                string drinkDescription = Rule.FormatDrinkDescription(paceQuantity);
+
+                int pace = _game._gameRules.Pace;
+
+                DrinkingPaceTextBlock.Text = $"Drinking Pace: {drinkDescription} every {pace} minutes.";
+            }
+            else
+            {
+                // Pace is not set, hide the TextBlock
+                DrinkingPaceTextBlock.Visibility = Visibility.Collapsed;
+            }
         }
 
         private void EditPlayer_Click(object sender, RoutedEventArgs e)

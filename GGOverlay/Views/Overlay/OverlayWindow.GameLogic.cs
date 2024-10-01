@@ -418,6 +418,7 @@ namespace GGOverlay
                 LoadLobbyMembers();
                 AdjustFontSizes(UnifiedBorder); // Ensure font sizes are adjusted on update
                 ApplyTextOpacity(); // Apply text opacity if needed
+                UpdateTimerDisplay(); // Update the timer display
             });
         }
 

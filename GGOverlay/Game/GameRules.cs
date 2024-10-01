@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Windows.Controls;
 using Newtonsoft.Json;
 
 namespace GGOverlay.Game
@@ -17,10 +18,15 @@ namespace GGOverlay.Game
         // Logging event callback
         public event Action<string> OnLog;
 
+        public int Pace { get; set; }
+        public int PaceQuantity { get; set; }
+
         // Constructor initializes the list of rules
         public GameRules()
         {
             Rules = new List<Rule>();
+            Pace = 0;
+            PaceQuantity = 0;
         }
 
         public void LoadFromFile(string filePath)
@@ -34,9 +40,19 @@ namespace GGOverlay.Game
                 }
 
                 string json = File.ReadAllText(filePath);
-                Rules = JsonConvert.DeserializeObject<List<Rule>>(json) ?? new List<Rule>();
-                SourceFilePath = filePath;
-                OnLog?.Invoke("Rules loaded successfully.");
+                var loadedRules = JsonConvert.DeserializeObject<GameRules>(json);
+                if (loadedRules != null)
+                {
+                    this.Rules = loadedRules.Rules ?? new List<Rule>();
+                    this.Pace = loadedRules.Pace;
+                    this.PaceQuantity = loadedRules.PaceQuantity;
+                    SourceFilePath = filePath;
+                    OnLog?.Invoke("Rules loaded successfully.");
+                }
+                else
+                {
+                    OnLog?.Invoke("Failed to deserialize rules from file.");
+                }
             }
             catch (Exception ex)
             {
@@ -48,7 +64,7 @@ namespace GGOverlay.Game
         {
             try
             {
-                string json = JsonConvert.SerializeObject(Rules, Formatting.Indented);
+                string json = JsonConvert.SerializeObject(this, Formatting.Indented);
                 File.WriteAllText(filePath, json);
                 SourceFilePath = filePath;
                 OnLog?.Invoke("Rules saved successfully.");
@@ -81,9 +97,19 @@ namespace GGOverlay.Game
         {
             try
             {
-                // Deserialize the string into a list of rules
-                Rules = JsonConvert.DeserializeObject<List<Rule>>(serializedRules) ?? new List<Rule>();
-                OnLog?.Invoke("Rules deserialized successfully.");
+                // Deserialize the string into a GameRules object
+                var receivedRules = JsonConvert.DeserializeObject<GameRules>(serializedRules);
+                if (receivedRules != null)
+                {
+                    this.Rules = receivedRules.Rules ?? new List<Rule>();
+                    this.Pace = receivedRules.Pace;
+                    this.PaceQuantity = receivedRules.PaceQuantity;
+                    OnLog?.Invoke("Rules deserialized successfully.");
+                }
+                else
+                {
+                    OnLog?.Invoke("Failed to deserialize rules.");
+                }
             }
             catch (Exception ex)
             {
@@ -245,7 +271,7 @@ namespace GGOverlay.Game
 
 
 
-        private string FormatDrinkDescription(int quantity)
+        public static string FormatDrinkDescription(int quantity)
         {
             string drinkText;
 

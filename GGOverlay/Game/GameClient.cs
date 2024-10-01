@@ -21,6 +21,7 @@ namespace GGOverlay.Game
 
         public GameRules _gameRules { get; set; }
 
+        public double _elapsedMinutes { get; set; }
         // UserData
         public UserData UserData { get; set; }
 
@@ -36,6 +37,7 @@ namespace GGOverlay.Game
             _networkClient = new NetworkClient();
             _gameRules = new GameRules();
             _players = new List<PlayerInfo>();
+            _elapsedMinutes = 0;
 
             // Load UserData
             UserData = UserData.Load();
@@ -181,6 +183,19 @@ namespace GGOverlay.Game
                         OnGroupPunishmentTriggered?.Invoke(rule);
                     });
                 }
+                else if (messageType == "ELAPSEDMINUTESUPDATE")
+                {
+                    // Handle elapsed minutes update
+                    double elapsedMinutes = messageObject.ElapsedMinutes;
+                    _elapsedMinutes = elapsedMinutes;
+                    LogMessage($"Updated elapsed minutes to {_elapsedMinutes} minutes.");
+
+                    // If needed, invoke UI update
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        UIUpdate?.Invoke();
+                    });
+                }
                 else
                 {
                     LogMessage("Unknown message type received.");
@@ -243,6 +258,27 @@ namespace GGOverlay.Game
 
             // Send message to the server
             await SendMessageAsync(serializedMessage);
+        }
+
+        public void FinishDrink()
+        {
+            // Calculate the punishment quantity
+            int desiredSips = 20 - (_localPlayer.DrinkCount % 20);
+
+            double unroundedPunishmentQuantity = desiredSips / _localPlayer.DrinkModifier;
+            int punishmentQuantity = (int)Math.Round(unroundedPunishmentQuantity, MidpointRounding.AwayFromZero);
+
+            // Create the new individual rule
+            Rule finishDrinkRule = new Rule
+            {
+                RuleDescription = "Finish Drink",
+                PunishmentDescription = "{0} drank {1} to finish their drink.",
+                PunishmentQuantity = punishmentQuantity,
+                IsGroupPunishment = false
+            };
+
+            // Call TriggerIndividualRule to send the request to the server
+            TriggerIndividualRule(finishDrinkRule, _localPlayer);
         }
 
     }
