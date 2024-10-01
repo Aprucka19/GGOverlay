@@ -364,3 +364,4 @@ FodyWeavers.xsd
 /GGOverlay/Database/Counters.cs
 /GGOverlay/Database/DatabaseManager.cs
 /GGOverlay/Utilities/EmptyStringToVisibilityConverter.cs
+/GGOverlayInstaller/GGOverlayRelease1.0.0.zip
