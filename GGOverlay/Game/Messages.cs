@@ -58,6 +58,18 @@ public class TriggerGroupRuleMessage : Message
     }
 }
 
+public class TriggerAllButOneRuleMessage : Message
+{
+    public Rule Rule { get; set; }
+
+    public PlayerInfo Player { get; set; }
+
+    public TriggerAllButOneRuleMessage()
+    {
+        MessageType = "TRIGGERALLBUTONERULE";
+    }
+}
+
 public class ElapsedMinutesUpdateMessage : Message
 {
     public ElapsedMinutesUpdateMessage()
@@ -65,4 +77,14 @@ public class ElapsedMinutesUpdateMessage : Message
         MessageType = "ELAPSEDMINUTESUPDATE";
     }
     public double ElapsedMinutes { get; set; }
+}
+
+public class TriggerEventPaceRuleMessage : Message
+{
+    public Rule Rule { get; set; }
+
+    public TriggerEventPaceRuleMessage()
+    {
+        MessageType = "TRIGGEREVENTPACERULE";
+    }
 }

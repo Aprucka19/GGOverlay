@@ -9,6 +9,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Fonts\Rajdhani-Bold.ttf" />
+    <None Remove="Fonts\Rajdhani-Light.ttf" />
+    <None Remove="Fonts\Rajdhani-Medium.ttf" />
+    <None Remove="Fonts\Rajdhani-Regular.ttf" />
+    <None Remove="Fonts\Rajdhani-SemiBold.ttf" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Extended.Wpf.Toolkit" Version="4.6.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
@@ -22,6 +30,14 @@
   <ItemGroup>
     <Folder Include="Assets\" />
     <Folder Include="Installer\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Fonts\Rajdhani-Bold.ttf" />
+    <Resource Include="Fonts\Rajdhani-Light.ttf" />
+    <Resource Include="Fonts\Rajdhani-Medium.ttf" />
+    <Resource Include="Fonts\Rajdhani-Regular.ttf" />
+    <Resource Include="Fonts\Rajdhani-SemiBold.ttf" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">

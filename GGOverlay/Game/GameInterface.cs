@@ -12,8 +12,7 @@ namespace GGOverlay.Game
         event Action OnDisconnect;
 
         // Add the new events
-        event Action<Rule> OnGroupPunishmentTriggered;
-        event Action<Rule, PlayerInfo> OnIndividualPunishmentTriggered;
+        event Action<Rule, PlayerInfo> OnPunishmentTriggered;
 
         // Existing properties and methods
         PlayerInfo _localPlayer { get; set; }
@@ -27,8 +26,8 @@ namespace GGOverlay.Game
         Task Start(int port, string ipAddress = null);
         void EditPlayer(string name, double drinkModifier, int drinkCount = 0);
         Task SetGameRules(string filepath);
-        void TriggerGroupRule(Rule rule);
-        void TriggerIndividualRule(Rule rule, PlayerInfo player);
+
+        void TriggerRule(Rule rule, PlayerInfo player);
         void RequestUIUpdate();
         void Stop();
         void FinishDrink();

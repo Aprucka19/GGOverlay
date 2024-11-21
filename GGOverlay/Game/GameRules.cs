@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Windows.Controls;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace GGOverlay.Game
 {
@@ -154,22 +155,36 @@ namespace GGOverlay.Game
 
     }
 
+    public enum PunishmentType
+    {
+        Individual,
+        Group,
+        AllButOne,
+        EventPace
+    }
+
     public class Rule : INotifyPropertyChanged
     {
-        private bool _isGroupPunishment;
+        private PunishmentType _punishmentType;
         private string _ruleDescription;
         private string _punishmentDescription;
         private int _punishmentQuantity;
 
-        public bool IsGroupPunishment
+
+        [JsonIgnore]
+        public int _punishmentCounter { get; set; } = 0;
+
+
+        [JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
+        public PunishmentType PunishmentType
         {
-            get => _isGroupPunishment;
+            get => _punishmentType;
             set
             {
-                if (_isGroupPunishment != value)
+                if (_punishmentType != value)
                 {
-                    _isGroupPunishment = value;
-                    OnPropertyChanged(nameof(IsGroupPunishment));
+                    _punishmentType = value;
+                    OnPropertyChanged(nameof(PunishmentType));
                 }
             }
         }
@@ -217,9 +232,9 @@ namespace GGOverlay.Game
         {
         }
 
-        public Rule(bool isGroupPunishment, string ruleDescription, string punishmentDescription, int punishmentQuantity)
+        public Rule(PunishmentType punishmentType, string ruleDescription, string punishmentDescription, int punishmentQuantity)
         {
-            IsGroupPunishment = isGroupPunishment;
+            PunishmentType = punishmentType;
             RuleDescription = ruleDescription;
             PunishmentDescription = punishmentDescription;
             PunishmentQuantity = punishmentQuantity;
@@ -227,9 +242,8 @@ namespace GGOverlay.Game
 
         public Rule Clone()
         {
-            return new Rule(IsGroupPunishment, RuleDescription, PunishmentDescription, PunishmentQuantity);
+            return new Rule(PunishmentType, RuleDescription, PunishmentDescription, PunishmentQuantity);
         }
-
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected void OnPropertyChanged(string name)
@@ -241,7 +255,7 @@ namespace GGOverlay.Game
         {
             if (obj is Rule otherRule)
             {
-                return this.IsGroupPunishment == otherRule.IsGroupPunishment &&
+                return this.PunishmentType == otherRule.PunishmentType &&
                        this.RuleDescription == otherRule.RuleDescription &&
                        this.PunishmentDescription == otherRule.PunishmentDescription &&
                        this.PunishmentQuantity == otherRule.PunishmentQuantity;
@@ -251,7 +265,7 @@ namespace GGOverlay.Game
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(IsGroupPunishment, RuleDescription, PunishmentDescription, PunishmentQuantity);
+            return HashCode.Combine(PunishmentType, RuleDescription, PunishmentDescription, PunishmentQuantity);
         }
 
         // Method to get the formatted punishment description
@@ -313,8 +327,23 @@ namespace GGOverlay.Game
         // Method to display rule details
         public override string ToString()
         {
-            string punishmentType = IsGroupPunishment ? "Group" : "Individual";
-            return $"{punishmentType} Punishment: {PunishmentDescription}, Quantity: {PunishmentQuantity}";
+            
+            return $"Punishment: {PunishmentDescription}, Quantity: {PunishmentQuantity}";
+        }
+    }
+
+    // Custom ContractResolver to ignore _punishmentCounter during serialization
+    public class IgnorePunishmentCounterContractResolver : DefaultContractResolver
+    {
+        protected override IList<JsonProperty> CreateProperties(Type type, MemberSerialization memberSerialization)
+        {
+            // Let the base class create all the JsonProperties
+            IList<JsonProperty> properties = base.CreateProperties(type, memberSerialization);
+
+            // Exclude the _punishmentCounter property
+            properties = properties.Where(p => p.PropertyName != "_punishmentCounter").ToList();
+
+            return properties;
         }
     }
 

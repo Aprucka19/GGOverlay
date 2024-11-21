@@ -28,8 +28,8 @@ namespace GGOverlay.Game
         public event Action<string> OnLog;
         public event Action OnDisconnect;
         public event Action UIUpdate;
-        public event Action<Rule, PlayerInfo> OnIndividualPunishmentTriggered;
-        public event Action<Rule> OnGroupPunishmentTriggered;
+        public event Action<Rule, PlayerInfo> OnPunishmentTriggered;
+
 
         // Constructor initializes the objects
         public GameClient()
@@ -170,7 +170,18 @@ namespace GGOverlay.Game
                     // Invoke the punishment
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        OnIndividualPunishmentTriggered?.Invoke(rule, player);
+                        OnPunishmentTriggered?.Invoke(rule, player);
+                    });
+                }
+                else if (messageType == "TRIGGERALLBUTONERULE")
+                {
+                    Rule rule = JsonConvert.DeserializeObject<Rule>(messageObject.Rule.ToString());
+                    PlayerInfo player = JsonConvert.DeserializeObject<PlayerInfo>(messageObject.Player.ToString());
+
+                    // Invoke the punishment
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        OnPunishmentTriggered?.Invoke(rule, player);
                     });
                 }
                 else if (messageType == "TRIGGERGROUPRULE")
@@ -180,7 +191,7 @@ namespace GGOverlay.Game
                     // Invoke the punishment
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        OnGroupPunishmentTriggered?.Invoke(rule);
+                        OnPunishmentTriggered?.Invoke(rule,null);
                     });
                 }
                 else if (messageType == "ELAPSEDMINUTESUPDATE")
@@ -240,21 +251,63 @@ namespace GGOverlay.Game
             UserData.Save(); // Save UserData when stopping
         }
 
-        // Implement TriggerIndividualRule
-        public async void TriggerIndividualRule(Rule rule, PlayerInfo player)
+        public async void TriggerRule(Rule rule, PlayerInfo player = null)
         {
-            var messageObject = new TriggerIndividualRuleMessage { Rule = rule, Player = player };
-            string serializedMessage = JsonConvert.SerializeObject(messageObject);
+            string serializedMessage;
 
-            // Send message to the server
-            await SendMessageAsync(serializedMessage);
-        }
+            switch (rule.PunishmentType)
+            {
+                case PunishmentType.Individual:
+                    // Ensure player is provided for Individual punishment
+                    if (player == null)
+                    {
+                        throw new ArgumentNullException(nameof(player), "Player must be provided for Individual punishment.");
+                    }
 
-        // Implement TriggerGroupRule
-        public async void TriggerGroupRule(Rule rule)
-        {
-            var messageObject = new TriggerGroupRuleMessage { Rule = rule };
-            string serializedMessage = JsonConvert.SerializeObject(messageObject);
+                    var individualMessage = new TriggerIndividualRuleMessage
+                    {
+                        Rule = rule,
+                        Player = player
+                    };
+                    serializedMessage = JsonConvert.SerializeObject(individualMessage);
+                    break;
+
+                case PunishmentType.Group:
+                    var groupMessage = new TriggerGroupRuleMessage
+                    {
+                        Rule = rule
+                    };
+                    serializedMessage = JsonConvert.SerializeObject(groupMessage);
+                    break;
+
+                case PunishmentType.AllButOne:
+                    // Ensure player is provided for AllButOne punishment
+                    if (player == null)
+                    {
+                        throw new ArgumentNullException(nameof(player), "Exempted player must be provided for AllButOne punishment.");
+                    }
+
+                    var allButOneMessage = new TriggerAllButOneRuleMessage
+                    {
+                        Rule = rule,
+                        Player = player
+                    };
+                    serializedMessage = JsonConvert.SerializeObject(allButOneMessage);
+                    break;
+
+                case PunishmentType.EventPace:
+                    // New code for EventPace
+                    var eventPaceMessage = new TriggerEventPaceRuleMessage
+                    {
+                        Rule = rule
+                    };
+                    serializedMessage = JsonConvert.SerializeObject(eventPaceMessage);
+                    break;
+
+                default:
+                    // Handle any other PunishmentTypes if necessary
+                    return;
+            }
 
             // Send message to the server
             await SendMessageAsync(serializedMessage);
@@ -274,11 +327,11 @@ namespace GGOverlay.Game
                 RuleDescription = "Finish Drink",
                 PunishmentDescription = "{0} drank {1} to finish their drink.",
                 PunishmentQuantity = punishmentQuantity,
-                IsGroupPunishment = false
+                PunishmentType = PunishmentType.Individual
             };
 
             // Call TriggerIndividualRule to send the request to the server
-            TriggerIndividualRule(finishDrinkRule, _localPlayer);
+            TriggerRule(finishDrinkRule, _localPlayer);
         }
 
     }

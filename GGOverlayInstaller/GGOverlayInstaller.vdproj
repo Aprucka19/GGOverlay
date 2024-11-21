@@ -49,6 +49,22 @@
         "PrivateKeyFile" = "8:"
         "TimeStampServer" = "8:"
         "InstallerBootstrapper" = "3:2"
+            "BootstrapperCfg:{63ACBE69-63AA-4F98-B2B6-99F9E24495F2}"
+            {
+            "Enabled" = "11:TRUE"
+            "PromptEnabled" = "11:TRUE"
+            "PrerequisitesLocation" = "2:1"
+            "Url" = "8:"
+            "ComponentsUrl" = "8:"
+                "Items"
+                {
+                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:.NETFramework,Version=v4.7.2"
+                    {
+                    "Name" = "8:Microsoft .NET Framework 4.7.2 (x86 and x64)"
+                    "ProductCode" = "8:.NETFramework,Version=v4.7.2"
+                    }
+                }
+            }
         }
         "Release"
         {
@@ -65,6 +81,22 @@
         "PrivateKeyFile" = "8:"
         "TimeStampServer" = "8:"
         "InstallerBootstrapper" = "3:2"
+            "BootstrapperCfg:{63ACBE69-63AA-4F98-B2B6-99F9E24495F2}"
+            {
+            "Enabled" = "11:TRUE"
+            "PromptEnabled" = "11:TRUE"
+            "PrerequisitesLocation" = "2:1"
+            "Url" = "8:"
+            "ComponentsUrl" = "8:"
+                "Items"
+                {
+                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:.NETFramework,Version=v4.7.2"
+                    {
+                    "Name" = "8:Microsoft .NET Framework 4.7.2 (x86 and x64)"
+                    "ProductCode" = "8:.NETFramework,Version=v4.7.2"
+                    }
+                }
+            }
         }
     }
     "Deployable"
@@ -203,15 +235,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:GGOverlay"
-        "ProductCode" = "8:{A081E6A0-29DF-4AAA-9AE0-D1985007BE33}"
-        "PackageCode" = "8:{08DFDBEC-EF42-4852-8D22-AE3131FB5B51}"
+        "ProductCode" = "8:{921B4DC6-1360-4D13-9567-07E4560FB566}"
+        "PackageCode" = "8:{DF087E62-C0CC-4F7F-92BB-19E49C67C226}"
         "UpgradeCode" = "8:{438877D7-CF56-472F-83A6-FF78CDB4DFF7}"
         "AspNetVersion" = "8:2.0.50727.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:1.0.0"
+        "ProductVersion" = "8:1.0.2"
         "Manufacturer" = "8:GGCorp"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"
@@ -739,7 +771,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_3325B53958764149A7C575B9676EECDE"
             {
-            "SourcePath" = "8:..\\GGOverlay\\obj\\Debug\\net8.0-windows\\apphost.exe"
+            "SourcePath" = "8:..\\GGOverlay\\obj\\Release\\net8.0-windows\\apphost.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_3C5B56B824974E4D94E2A1ADE8BD6643"

@@ -39,8 +39,8 @@ namespace GGOverlay.Game
 
         public event Action<string> OnLog;
         public event Action UIUpdate;
-        public event Action<Rule, PlayerInfo> OnIndividualPunishmentTriggered;
-        public event Action<Rule> OnGroupPunishmentTriggered;
+        public event Action<Rule, PlayerInfo> OnPunishmentTriggered;
+
         private int _paceHitCount = 0;
 
 
@@ -167,7 +167,7 @@ namespace GGOverlay.Game
                         RuleDescription = "Pace Punishment",
                         PunishmentDescription = "{0} needs to keep pace and drink {1}.",
                         PunishmentQuantity = difference,
-                        IsGroupPunishment = false
+                        PunishmentType = PunishmentType.Individual
 
                     };
 
@@ -271,6 +271,13 @@ namespace GGOverlay.Game
 
                     await HandleTriggerIndividualRule(rule, player);
                 }
+                if (messageType == "TRIGGERALLBUTONERULE")
+                {
+                    Rule rule = JsonConvert.DeserializeObject<Rule>(messageObject.Rule.ToString());
+                    PlayerInfo player = JsonConvert.DeserializeObject<PlayerInfo>(messageObject.Player.ToString());
+
+                    await HandleTriggerAllButOneRule(rule, player);
+                }
                 else if (messageType == "TRIGGERGROUPRULE")
                 {
                     Rule rule = JsonConvert.DeserializeObject<Rule>(messageObject.Rule.ToString());
@@ -302,6 +309,12 @@ namespace GGOverlay.Game
                     {
                         UIUpdate?.Invoke();
                     });
+                }
+                else if (messageType == "TRIGGEREVENTPACERULE") // New handling for EventPace
+                {
+                    Rule rule = JsonConvert.DeserializeObject<Rule>(messageObject.Rule.ToString());
+
+                    await HandleTriggerEventPaceRule(rule);
                 }
                 else
                 {
@@ -430,7 +443,7 @@ namespace GGOverlay.Game
             Application.Current.Dispatcher.Invoke(() =>
             {
                 UIUpdate?.Invoke();
-                OnIndividualPunishmentTriggered?.Invoke(rule, player);
+                OnPunishmentTriggered?.Invoke(rule, player);
             });
 
             // Send out a message to all clients to trigger the rule
@@ -439,6 +452,60 @@ namespace GGOverlay.Game
 
             await BroadcastMessageAsync(triggerMessage);
         }
+
+
+        private async Task HandleTriggerAllButOneRule(Rule rule, PlayerInfo player)
+        {
+            // Generate a unique key for the rule (we no longer need the player key for AllButOne)
+            string ruleKey = $"ALLBUTONE:{GetRuleKey(rule)}";
+
+            DateTime now = DateTime.Now;
+
+            if (_lastRuleTriggerTime.ContainsKey(ruleKey))
+            {
+                DateTime lastTriggerTime = _lastRuleTriggerTime[ruleKey];
+                if ((now - lastTriggerTime).TotalSeconds < 10)
+                {
+                    // Ignore the trigger due to cooldown
+                    LogMessage($"Ignored trigger of rule '{rule.RuleDescription}' due to cooldown.");
+                    return;
+                }
+            }
+
+            // Update the last trigger time for this rule
+            _lastRuleTriggerTime[ruleKey] = now;
+
+            // Loop through all players except the input player
+            foreach (var targetPlayer in _players)
+            {
+                if (targetPlayer.Name != player.Name) // Skip the input player
+                {
+                    // Calculate adjusted punishment quantity
+                    int adjustedPunishmentQuantity = (int)Math.Round(rule.PunishmentQuantity * targetPlayer.DrinkModifier, MidpointRounding.AwayFromZero);
+
+                    // Add the adjusted punishment quantity to the player's drink count
+                    targetPlayer.DrinkCount += adjustedPunishmentQuantity;
+                }
+            }
+
+            // Send out a Player Update (this will update all clients with the modified player list)
+            await SendPlayerListUpdateAsync();
+
+            // Update UI and invoke events on the UI thread
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                UIUpdate?.Invoke();
+                OnPunishmentTriggered?.Invoke(rule, player); // Raise event for UI
+            });
+
+            // Send out a message to all clients to trigger the AllButOne rule
+            var messageObject = new TriggerAllButOneRuleMessage { Rule = rule, Player = player };
+            string triggerMessage = JsonConvert.SerializeObject(messageObject);
+
+            // Broadcast the trigger message to all clients
+            await BroadcastMessageAsync(triggerMessage);
+        }
+
 
         private async Task HandleTriggerGroupRule(Rule rule)
         {
@@ -474,7 +541,7 @@ namespace GGOverlay.Game
             Application.Current.Dispatcher.Invoke(() =>
             {
                 UIUpdate?.Invoke();
-                OnGroupPunishmentTriggered?.Invoke(rule);
+                OnPunishmentTriggered?.Invoke(rule,null);
             });
 
             // Send out a message to all clients to trigger the rule
@@ -485,12 +552,18 @@ namespace GGOverlay.Game
         }
 
 
-        // Helper methods to generate unique keys
         private string GetRuleKey(Rule rule)
         {
-            string serializedRule = JsonConvert.SerializeObject(rule);
+            var settings = new JsonSerializerSettings
+            {
+                ContractResolver = new IgnorePunishmentCounterContractResolver(),
+                Formatting = Formatting.None
+            };
+
+            string serializedRule = JsonConvert.SerializeObject(rule, settings);
             return ComputeHash(serializedRule);
         }
+
 
         private string GetPlayerKey(PlayerInfo player)
         {
@@ -519,17 +592,109 @@ namespace GGOverlay.Game
             }
         }
 
-        public void TriggerGroupRule(Rule rule)
+        public void TriggerRule(Rule rule, PlayerInfo player = null)
         {
-            // Since GameMaster is the server, we handle the trigger directly
-            _ = HandleTriggerGroupRule(rule);
+            switch (rule.PunishmentType)
+            {
+                case PunishmentType.Group:
+                    _ = HandleTriggerGroupRule(rule);
+                    break;
+
+                case PunishmentType.Individual:
+                    if (player == null)
+                    {
+                        throw new ArgumentNullException(nameof(player), "Player must be provided for Individual punishment.");
+                    }
+                    _ = HandleTriggerIndividualRule(rule, player);
+                    break;
+
+                case PunishmentType.AllButOne:
+                    if (player == null)
+                    {
+                        throw new ArgumentNullException(nameof(player), "Exempted player must be provided for AllButOne punishment.");
+                    }
+                    _ = HandleTriggerAllButOneRule(rule, player);
+                    break;
+
+                case PunishmentType.EventPace:
+                    _ = HandleTriggerEventPaceRule(rule); // Added this case
+                    break;
+
+                default:
+                    throw new InvalidOperationException($"Unsupported PunishmentType: {rule.PunishmentType}");
+            }
         }
 
-        public void TriggerIndividualRule(Rule rule, PlayerInfo player)
+        private async Task HandleTriggerEventPaceRule(Rule ruleFromClient)
         {
-            // Since GameMaster is the server, we handle the trigger directly
-            _ = HandleTriggerIndividualRule(rule, player);
+            // Find the matching rule in the GameMaster's _gameRules.Rules list
+            Rule matchingRule = _gameRules.Rules.FirstOrDefault(r =>
+                r.RuleDescription == ruleFromClient.RuleDescription &&
+                r.PunishmentType == ruleFromClient.PunishmentType &&
+                r.PunishmentQuantity == ruleFromClient.PunishmentQuantity &&
+                r.PunishmentDescription == ruleFromClient.PunishmentDescription);
+
+            if (matchingRule == null)
+            {
+                LogMessage($"No matching rule found for EventPace rule '{ruleFromClient.RuleDescription}'.");
+                return;
+            }
+
+            // Use the matching rule's _punishmentCounter
+            // Generate a unique key for the rule
+            string ruleKey = $"EVENTPACE:{GetRuleKey(matchingRule)}";
+
+            DateTime now = DateTime.Now;
+
+            if (_lastRuleTriggerTime.ContainsKey(ruleKey))
+            {
+                DateTime lastTriggerTime = _lastRuleTriggerTime[ruleKey];
+                if ((now - lastTriggerTime).TotalSeconds < 10)
+                {
+                    // Ignore the trigger due to cooldown
+                    LogMessage($"Ignored trigger of EventPace rule '{matchingRule.RuleDescription}' due to cooldown.");
+                    return;
+                }
+            }
+
+            // Update the last trigger time
+            _lastRuleTriggerTime[ruleKey] = now;
+
+            // Increment the punishment counter in the matching rule
+            matchingRule._punishmentCounter++;
+
+            // Loop through each player
+            foreach (var player in _players)
+            {
+                // Calculate the expected drink count
+                double expectedDrinkCount = matchingRule._punishmentCounter * matchingRule.PunishmentQuantity * player.DrinkModifier;
+
+                // If player's drink count is less than expected
+                if (player.DrinkCount < expectedDrinkCount)
+                {
+                    // Calculate the difference
+                    int difference = (int)Math.Ceiling((expectedDrinkCount - player.DrinkCount) / player.DrinkModifier);
+
+                    // Create a custom rule for the punishment
+                    Rule customRule = new Rule
+                    {
+                        RuleDescription = matchingRule.RuleDescription, // Use the original rule description
+                        PunishmentDescription = matchingRule.PunishmentDescription, // Use the original punishment description
+                        PunishmentQuantity = difference,
+                        PunishmentType = PunishmentType.Individual
+                    };
+
+                    // Log the punishment
+                    LogMessage($"EventPace Punishment for {player.Name}: Needs to drink {difference} to keep pace.");
+
+                    // Handle the individual punishment
+                    await HandleTriggerIndividualRule(customRule, player);
+                }
+            }
         }
+
+
+
 
         public void FinishDrink()
         {
@@ -545,7 +710,7 @@ namespace GGOverlay.Game
                 RuleDescription = "Finish Drink",
                 PunishmentDescription = "{0} drank {1} to finish their drink.",
                 PunishmentQuantity = punishmentQuantity,
-                IsGroupPunishment = false
+                PunishmentType = PunishmentType.Individual
             };
 
             // Handle the trigger directly

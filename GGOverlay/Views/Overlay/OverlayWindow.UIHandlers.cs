@@ -456,16 +456,38 @@ namespace GGOverlay
                 "Segoe Script",
                 "Lucida Handwriting",
                 "Segoe Print",
-                "Kristen ITC"
+                "Kristen ITC",
+                // Add Rajdhani fonts
+                "Rajdhani Light",
+                "Rajdhani Regular",
+                "Rajdhani Medium",
+                "Rajdhani SemiBold",
+                "Rajdhani Bold"
             };
 
             foreach (var font in fonts)
             {
                 ComboBoxItem item = new ComboBoxItem
                 {
-                    Content = font,
-                    FontFamily = new FontFamily(font)
+                    Content = font
                 };
+
+                FontFamily fontFamily;
+
+                if (font.StartsWith("Rajdhani"))
+                {
+                    // For Rajdhani fonts, create the FontFamily from the resource
+                    string weight = font.Substring("Rajdhani ".Length);
+                    fontFamily = new FontFamily(new Uri("pack://application:,,,/"), "./Fonts/#Rajdhani " + weight);
+                }
+                else
+                {
+                    // For system fonts
+                    fontFamily = new FontFamily(font);
+                }
+
+                item.FontFamily = fontFamily;
+
                 if (font == "Segoe UI")
                 {
                     item.IsSelected = true;
@@ -490,15 +512,29 @@ namespace GGOverlay
         private void SetFontFamily(string fontName)
         {
             currentFont = fontName;
+            FontFamily fontFamily;
+
+            if (fontName.StartsWith("Rajdhani"))
+            {
+                // For Rajdhani fonts, create the FontFamily from the resource
+                string weight = fontName.Substring("Rajdhani ".Length);
+                fontFamily = new FontFamily(new Uri("pack://application:,,,/"), "./Fonts/#Rajdhani " + weight);
+            }
+            else
+            {
+                // For system fonts
+                fontFamily = new FontFamily(fontName);
+            }
+
             foreach (var textBlock in FindVisualChildren<TextBlock>(UnifiedBorder))
             {
-                textBlock.FontFamily = new FontFamily(fontName);
+                textBlock.FontFamily = fontFamily;
             }
 
             // Update TimerTextBlock's font family
             if (TimerTextBlock != null)
             {
-                TimerTextBlock.FontFamily = new FontFamily(fontName);
+                TimerTextBlock.FontFamily = fontFamily;
             }
         }
 

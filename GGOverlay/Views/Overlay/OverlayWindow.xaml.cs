@@ -104,8 +104,8 @@ namespace GGOverlay
             _game.OnDisconnect += CloseOverlay;
 
             // Subscribe to the OnPunishmentTriggered event
-            _game.OnGroupPunishmentTriggered += HandleGroupPunishmentTriggered;
-            _game.OnIndividualPunishmentTriggered += HandleIndividualPunishmentTriggered;
+            _game.OnPunishmentTriggered += HandlePunishmentTriggered;
+
 
             // Subscribe to size change event to adjust font sizes
             this.SizeChanged += OverlayWindow_SizeChanged;

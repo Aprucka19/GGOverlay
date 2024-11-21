@@ -297,7 +297,7 @@ namespace GGOverlay
             selectedRuleBorder.BorderBrush = Brushes.Yellow; // Highlight selected rule
 
             // If the rule is a group punishment, deselect any selected player
-            if (selectedRule.IsGroupPunishment)
+            if (selectedRule.PunishmentType == PunishmentType.Group || selectedRule.PunishmentType == PunishmentType.EventPace)
             {
                 DeselectPlayer();
             }
@@ -324,7 +324,7 @@ namespace GGOverlay
             }
 
             // If a group rule is selected, deselect it
-            if (selectedRule != null && selectedRule.IsGroupPunishment)
+            if (selectedRule != null && (selectedRule.PunishmentType == PunishmentType.Group || selectedRule.PunishmentType == PunishmentType.EventPace))
             {
                 DeselectRule();
             }
@@ -334,6 +334,7 @@ namespace GGOverlay
             selectedPlayerBorder = border;
 
             selectedPlayerBorder.BorderBrush = Brushes.Yellow; // Highlight selected player
+
 
             UpdateConfirmButtonVisibility();
         }
@@ -352,7 +353,7 @@ namespace GGOverlay
         {
             if (selectedRule != null)
             {
-                if (selectedRule.IsGroupPunishment)
+                if (selectedRule.PunishmentType == PunishmentType.Group || selectedRule.PunishmentType == PunishmentType.EventPace)
                 {
                     ConfirmButton.Visibility = Visibility.Visible;
                     CancelButton.Visibility = Visibility.Visible;
@@ -372,6 +373,11 @@ namespace GGOverlay
                     }
                 }
             }
+            else if(selectedPlayer != null)
+            {
+                ConfirmButton.Visibility = Visibility.Collapsed;
+                CancelButton.Visibility = Visibility.Visible;
+            }
             else
             {
                 ConfirmButton.Visibility = Visibility.Collapsed;
@@ -383,13 +389,17 @@ namespace GGOverlay
         {
             if (selectedRule != null)
             {
-                if (selectedRule.IsGroupPunishment)
+                if (selectedRule.PunishmentType == PunishmentType.Group || selectedRule.PunishmentType == PunishmentType.EventPace)
                 {
-                    _game.TriggerGroupRule(selectedRule);
+                    _game.TriggerRule(selectedRule,null);
                 }
-                else if (selectedPlayer != null)
+                else if (selectedPlayer != null && selectedRule.PunishmentType == PunishmentType.Individual)
                 {
-                    _game.TriggerIndividualRule(selectedRule, selectedPlayer);
+                    _game.TriggerRule(selectedRule, selectedPlayer);
+                }
+                else if (selectedPlayer != null && selectedRule.PunishmentType == PunishmentType.AllButOne)
+                {
+                    _game.TriggerRule(selectedRule, selectedPlayer);
                 }
 
                 // After confirmation, reset selections
@@ -422,19 +432,11 @@ namespace GGOverlay
             });
         }
 
-        private void HandleIndividualPunishmentTriggered(Rule rule, PlayerInfo player)
+        private void HandlePunishmentTriggered(Rule rule, PlayerInfo player)
         {
             Dispatcher.Invoke(() =>
             {
                 CreatePunishmentDisplay(rule, player);
-            });
-        }
-
-        private void HandleGroupPunishmentTriggered(Rule rule)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                CreatePunishmentDisplay(rule);
             });
         }
 
@@ -473,9 +475,27 @@ namespace GGOverlay
                 Opacity = currentTextOpacity // Set text opacity
             };
 
+            // Calculate adjusted punishment quantity and get player name
+            int adjustedPunishmentQuantity = 0;
+            string playerName = player?.Name ?? _game._localPlayer.Name;
+            double drinkModifier = 1.0;
+
+            if (rule.PunishmentType == PunishmentType.Individual)
+            {
+                // Use player's DrinkModifier
+                drinkModifier = player?.DrinkModifier ?? _game._localPlayer.DrinkModifier;
+            }
+            else
+            {
+                // Use _localPlayer's DrinkModifier
+                drinkModifier = _game._localPlayer.DrinkModifier;
+            }
+
+
+
             // Get the formatted punishment description
             punishmentDescriptionText.Text = rule.GetPunishmentDescription(
-                player?.Name, player?.DrinkModifier ?? _game._localPlayer.DrinkModifier);
+                playerName, drinkModifier);
 
             // Create Confirm Button
             Button punishmentConfirmButton = new Button
@@ -504,23 +524,59 @@ namespace GGOverlay
             // Add punishmentBorder to PunishmentDisplayStackPanel
             PunishmentDisplayStackPanel.Children.Add(punishmentBorder);
 
-            // Show the confirm button if necessary
-            if (player == null || string.Equals(player.Name, _game._localPlayer.Name, StringComparison.OrdinalIgnoreCase))
-            {
-                punishmentConfirmButton.Visibility = Visibility.Visible;
-            }
-            else
+            // Helper method to start auto-hide timer
+            void StartAutoHideTimer()
             {
                 // Start a timer to auto-hide after 5 seconds
-                DispatcherTimer individualPunishmentTimer = new DispatcherTimer();
-                individualPunishmentTimer.Interval = TimeSpan.FromSeconds(5);
-                individualPunishmentTimer.Tick += (sender, args) =>
+                DispatcherTimer autoHideTimer = new DispatcherTimer();
+                autoHideTimer.Interval = TimeSpan.FromSeconds(5);
+                autoHideTimer.Tick += (sender, args) =>
                 {
                     // Remove this punishment display from the stack panel
                     PunishmentDisplayStackPanel.Children.Remove(punishmentBorder);
-                    individualPunishmentTimer.Stop();
+                    autoHideTimer.Stop();
                 };
-                individualPunishmentTimer.Start();
+                autoHideTimer.Start();
+            }
+
+            // Determine whether to show the confirm button or auto-hide
+            var punishmentType = rule.PunishmentType;
+
+            if (punishmentType == PunishmentType.Group || punishmentType == PunishmentType.EventPace)
+            {
+                // Always show the confirm button
+                punishmentConfirmButton.Visibility = Visibility.Visible;
+            }
+            else if (punishmentType == PunishmentType.AllButOne)
+            {
+                if (player != null && string.Equals(player.Name, _game._localPlayer.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    // _localPlayer is the exempted player; auto-hide after 5 seconds
+                    StartAutoHideTimer();
+                }
+                else
+                {
+                    // _localPlayer is not the exempted player; show the confirm button
+                    punishmentConfirmButton.Visibility = Visibility.Visible;
+                }
+            }
+            else if (punishmentType == PunishmentType.Individual)
+            {
+                if (player != null && string.Equals(player.Name, _game._localPlayer.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    // _localPlayer is the target; show the confirm button
+                    punishmentConfirmButton.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    // _localPlayer is not the target; auto-hide after 5 seconds
+                    StartAutoHideTimer();
+                }
+            }
+            else
+            {
+                // For any other cases, auto-hide after 5 seconds
+                StartAutoHideTimer();
             }
         }
 

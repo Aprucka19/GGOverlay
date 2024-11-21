@@ -152,28 +152,25 @@ namespace GGOverlay
                 Directory.CreateDirectory(userRulesDirectory);
             }
 
-            // Check if there are any ruleset files in the directory
-            if (!Directory.EnumerateFiles(userRulesDirectory, "*.json").Any())
+            // Copy default rulesets from application directory
+            string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string defaultRulesDirectory = Path.Combine(appDirectory, "DefaultRulesets");
+
+            if (Directory.Exists(defaultRulesDirectory))
             {
-                // Copy default rulesets from application directory
-                string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                string defaultRulesDirectory = Path.Combine(appDirectory, "DefaultRulesets");
-
-                if (Directory.Exists(defaultRulesDirectory))
+                foreach (string filePath in Directory.GetFiles(defaultRulesDirectory, "*.json"))
                 {
-                    foreach (string filePath in Directory.GetFiles(defaultRulesDirectory, "*.json"))
-                    {
-                        string fileName = Path.GetFileName(filePath);
-                        string destFilePath = Path.Combine(userRulesDirectory, fileName);
+                    string fileName = Path.GetFileName(filePath);
+                    string destFilePath = Path.Combine(userRulesDirectory, fileName);
 
-                        try
-                        {
-                            File.Copy(filePath, destFilePath, overwrite: true);
-                        }
-                        catch (Exception ex)
-                        {
-                            MessageBox.Show($"Failed to copy default ruleset '{fileName}': {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                        }
+                    try
+                    {
+                        // Copy and overwrite any existing files with the same name
+                        File.Copy(filePath, destFilePath, overwrite: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Failed to copy default ruleset '{fileName}': {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
             }
