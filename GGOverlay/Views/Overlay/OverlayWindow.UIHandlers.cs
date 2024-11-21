@@ -27,7 +27,8 @@ namespace GGOverlay
 
         private void Section_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (!isInteractive)
+            // **Modification: Check if the settings window is open**
+            if (!isInteractive || InteractiveControlsBackground.Visibility != Visibility.Visible)
                 return;
 
             draggedSection = sender as Border;
@@ -36,6 +37,49 @@ namespace GGOverlay
                 isDragging = true;
                 clickPosition = e.GetPosition(MainCanvas);
                 draggedSection.CaptureMouse();
+            }
+        }
+
+        private void Section_MouseMove(object sender, MouseEventArgs e)
+        {
+            // **Modification: Ensure dragging only when settings window is open**
+            if (!isInteractive || InteractiveControlsBackground.Visibility != Visibility.Visible)
+                return;
+
+            if (isDragging && draggedSection != null)
+            {
+                Point currentPosition = e.GetPosition(MainCanvas);
+                double offsetX = currentPosition.X - clickPosition.X;
+                double offsetY = currentPosition.Y - clickPosition.Y;
+
+                double newLeft = Canvas.GetLeft(draggedSection) + offsetX;
+                double newTop = Canvas.GetTop(draggedSection) + offsetY;
+
+                // Ensure the section stays within the window bounds
+                newLeft = Math.Max(0, Math.Min(newLeft, MainCanvas.ActualWidth - draggedSection.Width));
+                newTop = Math.Max(0, Math.Min(newTop, MainCanvas.ActualHeight - draggedSection.Height));
+
+                Canvas.SetLeft(draggedSection, newLeft);
+                Canvas.SetTop(draggedSection, newTop);
+
+                clickPosition = currentPosition;
+            }
+        }
+
+        private void Section_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            // **Modification: Ensure dragging only when settings window is open**
+            if (!isInteractive || InteractiveControlsBackground.Visibility != Visibility.Visible)
+                return;
+
+            if (isDragging && draggedSection != null)
+            {
+                isDragging = false;
+                draggedSection.ReleaseMouseCapture();
+                draggedSection = null;
+
+                // Save the new position to UserData only when closing
+                // Removed SaveUserDataSettings() from here
             }
         }
 
@@ -90,40 +134,7 @@ namespace GGOverlay
             }
         }
 
-        private void Section_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (isDragging && draggedSection != null)
-            {
-                Point currentPosition = e.GetPosition(MainCanvas);
-                double offsetX = currentPosition.X - clickPosition.X;
-                double offsetY = currentPosition.Y - clickPosition.Y;
-
-                double newLeft = Canvas.GetLeft(draggedSection) + offsetX;
-                double newTop = Canvas.GetTop(draggedSection) + offsetY;
-
-                // Ensure the section stays within the window bounds
-                newLeft = Math.Max(0, Math.Min(newLeft, MainCanvas.ActualWidth - draggedSection.Width));
-                newTop = Math.Max(0, Math.Min(newTop, MainCanvas.ActualHeight - draggedSection.Height));
-
-                Canvas.SetLeft(draggedSection, newLeft);
-                Canvas.SetTop(draggedSection, newTop);
-
-                clickPosition = currentPosition;
-            }
-        }
-
-        private void Section_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            if (isDragging && draggedSection != null)
-            {
-                isDragging = false;
-                draggedSection.ReleaseMouseCapture();
-                draggedSection = null;
-
-                // Save the new position to UserData only when closing
-                // Removed SaveUserDataSettings() from here
-            }
-        }
+        
 
         #endregion
 

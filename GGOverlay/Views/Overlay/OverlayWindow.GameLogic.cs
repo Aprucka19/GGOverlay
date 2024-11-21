@@ -19,7 +19,33 @@ namespace GGOverlay
             // Apply overlay settings
             if (userData != null && userData.OverlaySettings != null)
             {
-                // Existing settings...
+                // Set font color
+                var fontColor = (Color)ColorConverter.ConvertFromString(userData.OverlaySettings.FontColor);
+                SetTextColor(fontColor);
+
+                // Set font scale multiplier
+                fontScaleMultiplier = userData.OverlaySettings.FontScaleMultiplier;
+                FontScaleSlider.Value = fontScaleMultiplier;
+
+                // Set background color
+                var backgroundColor = (Color)ColorConverter.ConvertFromString(userData.OverlaySettings.BackgroundColor);
+                SetBackgroundColor(backgroundColor);
+
+                // Set Text Opacity
+                TextOpacitySlider.Value = userData.OverlaySettings.TextOpacity;
+                SetTextOpacity(userData.OverlaySettings.TextOpacity);
+
+                // Set Background Opacity
+                BackgroundOpacitySlider.Value = userData.OverlaySettings.BackgroundOpacity;
+                SetBackgroundOpacity(userData.OverlaySettings.BackgroundOpacity);
+
+                // Set UnifiedBorder size
+                UnifiedBorder.Width = userData.OverlaySettings.WindowWidth;
+                UnifiedBorder.Height = userData.OverlaySettings.WindowHeight;
+
+                // Set UnifiedBorder position correctly using WindowTop
+                Canvas.SetLeft(UnifiedBorder, userData.OverlaySettings.WindowLeft);
+                Canvas.SetTop(UnifiedBorder, userData.OverlaySettings.WindowTop);
 
                 // **Load and apply the font name**
                 if (!string.IsNullOrEmpty(userData.OverlaySettings.FontName))
