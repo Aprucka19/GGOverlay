@@ -19,33 +19,25 @@ namespace GGOverlay
             // Apply overlay settings
             if (userData != null && userData.OverlaySettings != null)
             {
-                // Set font color
-                var fontColor = (Color)ColorConverter.ConvertFromString(userData.OverlaySettings.FontColor);
-                SetTextColor(fontColor);
+                // Existing settings...
 
-                // Set font scale multiplier
-                fontScaleMultiplier = userData.OverlaySettings.FontScaleMultiplier;
-                FontScaleSlider.Value = fontScaleMultiplier;
+                // **Load and apply the font name**
+                if (!string.IsNullOrEmpty(userData.OverlaySettings.FontName))
+                {
+                    currentFont = userData.OverlaySettings.FontName;
+                    SetFontFamily(currentFont);
 
-                // Set background color
-                var backgroundColor = (Color)ColorConverter.ConvertFromString(userData.OverlaySettings.BackgroundColor);
-                SetBackgroundColor(backgroundColor);
-
-                // Set Text Opacity
-                TextOpacitySlider.Value = userData.OverlaySettings.TextOpacity;
-                SetTextOpacity(userData.OverlaySettings.TextOpacity);
-
-                // Set Background Opacity
-                BackgroundOpacitySlider.Value = userData.OverlaySettings.BackgroundOpacity;
-                SetBackgroundOpacity(userData.OverlaySettings.BackgroundOpacity);
-
-                // Set UnifiedBorder size
-                UnifiedBorder.Width = userData.OverlaySettings.WindowWidth;
-                UnifiedBorder.Height = userData.OverlaySettings.WindowHeight;
-
-                // Set UnifiedBorder position correctly using WindowTop
-                Canvas.SetLeft(UnifiedBorder, userData.OverlaySettings.WindowLeft);
-                Canvas.SetTop(UnifiedBorder, userData.OverlaySettings.WindowTop);
+                    // Set the selected item in FontComboBox
+                    for (int i = 0; i < FontComboBox.Items.Count; i++)
+                    {
+                        var item = FontComboBox.Items[i] as ComboBoxItem;
+                        if (item != null && item.Content.ToString() == currentFont)
+                        {
+                            FontComboBox.SelectedIndex = i;
+                            break;
+                        }
+                    }
+                }
             }
             else
             {
@@ -56,6 +48,7 @@ namespace GGOverlay
                 Canvas.SetTop(UnifiedBorder, 50);
             }
         }
+
 
         private void SaveUserDataSettings()
         {
@@ -91,9 +84,13 @@ namespace GGOverlay
             userData.OverlaySettings.WindowLeft = Canvas.GetLeft(UnifiedBorder);
             userData.OverlaySettings.WindowTop = Canvas.GetTop(UnifiedBorder);
 
+            // **Save the current font**
+            userData.OverlaySettings.FontName = currentFont;
+
             // Save to file
             userData.Save();
         }
+
 
         private void LoadGameRules()
         {

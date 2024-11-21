@@ -488,7 +488,8 @@ namespace GGOverlay
 
                 item.FontFamily = fontFamily;
 
-                if (font == "Segoe UI")
+                // **Set the selected item based on currentFont**
+                if (font == currentFont)
                 {
                     item.IsSelected = true;
                 }
@@ -505,9 +506,10 @@ namespace GGOverlay
             {
                 string fontName = selected.Content.ToString();
                 SetFontFamily(fontName);
-                // SaveUserDataSettings(); // Removed from here
+                // **currentFont is updated in SetFontFamily()**
             }
         }
+
 
         private void SetFontFamily(string fontName)
         {
@@ -537,6 +539,7 @@ namespace GGOverlay
                 TimerTextBlock.FontFamily = fontFamily;
             }
         }
+
 
         #endregion
 
@@ -578,7 +581,7 @@ namespace GGOverlay
             fontScaleMultiplier = 1.0;
             currentBackgroundColor = Colors.Black;
             currentTextColor = Colors.White;
-            currentFont = "Segoe UI";
+            currentFont = "Segoe UI"; // **Reset the font to default**
 
             // Save the reset settings
             SaveUserDataSettings();
@@ -586,6 +589,7 @@ namespace GGOverlay
             // Reload lobby members to apply new settings
             LoadLobbyMembers();
         }
+
 
         #endregion
 
@@ -685,6 +689,25 @@ namespace GGOverlay
                     if (loadedSettings != null)
                     {
                         ApplyOverlaySettings(loadedSettings);
+
+                        // **Update the font after applying other settings**
+                        if (!string.IsNullOrEmpty(loadedSettings.FontName))
+                        {
+                            currentFont = loadedSettings.FontName;
+                            SetFontFamily(currentFont);
+
+                            // Set the selected item in FontComboBox
+                            for (int i = 0; i < FontComboBox.Items.Count; i++)
+                            {
+                                var item = FontComboBox.Items[i] as ComboBoxItem;
+                                if (item != null && item.Content.ToString() == currentFont)
+                                {
+                                    FontComboBox.SelectedIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+
                         Xceed.Wpf.Toolkit.MessageBox.Show("Settings loaded successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     else
@@ -698,6 +721,7 @@ namespace GGOverlay
                 Xceed.Wpf.Toolkit.MessageBox.Show($"An error occurred while loading settings: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
 
         private void SaveSettings()
         {
@@ -747,10 +771,12 @@ namespace GGOverlay
                 WindowLeft = Canvas.GetLeft(UnifiedBorder),
                 WindowTop = Canvas.GetTop(UnifiedBorder),
                 TextOpacity = TextOpacitySlider.Value,
-                BackgroundOpacity = BackgroundOpacitySlider.Value
-                // Add other settings as needed
+                BackgroundOpacity = BackgroundOpacitySlider.Value,
+                // **Include the FontName**
+                FontName = currentFont
             };
         }
+
 
         private void ApplyOverlaySettings(OverlaySettings settings)
         {
@@ -782,8 +808,27 @@ namespace GGOverlay
             Canvas.SetLeft(UnifiedBorder, settings.WindowLeft);
             Canvas.SetTop(UnifiedBorder, settings.WindowTop);
 
+            // **Apply the font name**
+            if (!string.IsNullOrEmpty(settings.FontName))
+            {
+                currentFont = settings.FontName;
+                SetFontFamily(currentFont);
+
+                // Set the selected item in FontComboBox
+                for (int i = 0; i < FontComboBox.Items.Count; i++)
+                {
+                    var item = FontComboBox.Items[i] as ComboBoxItem;
+                    if (item != null && item.Content.ToString() == currentFont)
+                    {
+                        FontComboBox.SelectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // Adjust font sizes and player boxes after applying settings
             AdjustFontSizes(UnifiedBorder);
-            AdjustPlayerBoxesWidth(); // Adjust player boxes' width after applying settings
+            AdjustPlayerBoxesWidth();
         }
 
         private void AdjustPlayerBoxesWidth()
