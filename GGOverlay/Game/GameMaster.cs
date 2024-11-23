@@ -402,6 +402,7 @@ namespace GGOverlay.Game
             _networkServer.Stop();
             UserData.Save(); // Save UserData when stopping
             StopTimer();
+            OnDisconnect?.Invoke();
         }
 
         private async Task HandleTriggerIndividualRule(Rule rule, PlayerInfo player)

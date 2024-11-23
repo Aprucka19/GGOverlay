@@ -13,6 +13,8 @@ using System.IO;
 using System.Linq;
 using MessageBox = System.Windows.MessageBox;
 using System.Windows.Interop;
+using System.Diagnostics;
+using System.ComponentModel;
 
 namespace GGOverlay
 {
@@ -24,6 +26,7 @@ namespace GGOverlay
         private bool isDragging = false;
         private Point clickPosition;
         private Border draggedSection;
+        private bool isRuleSliderDragging = false;
 
         private void Section_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -133,8 +136,6 @@ namespace GGOverlay
                 draggedControls = null;
             }
         }
-
-        
 
         #endregion
 
@@ -264,6 +265,125 @@ namespace GGOverlay
         #endregion
 
         #region Opacity Logic
+
+        #region Rule and Player Box Opacity Slider Logic
+
+        private void RuleOpacitySlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            isRuleSliderDragging = true;
+            sliderTimer.Stop(); // Stop the timer while dragging
+        }
+
+        private void RuleOpacitySlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            isRuleSliderDragging = false;
+            sliderTimer.Start(); // Start the timer when dragging stops
+            SaveUserDataSettings(); // Save the new opacity value
+        }
+
+        private void RuleOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isInteractive)
+                return;
+
+            if (isRuleSliderDragging)
+            {
+                // Adjust the opacity of rule borders and player boxes
+                SetRulesAndPlayerBoxOpacity(e.NewValue);
+            }
+        }
+
+        private void SetRulesAndPlayerBoxOpacity(double opacity)
+        {
+            // Clamp the opacity value to ensure it's within the valid range [0.0, 1.0]
+            opacity = Math.Max(0.0, Math.Min(opacity, 1.0));
+
+            // Adjust opacity for rule borders
+            foreach (var border in FindVisualChildren<Border>(GameRulesPanel))
+            {
+                // Adjust Background opacity
+                if (border.Background is SolidColorBrush backgroundBrush)
+                {
+                    Color backgroundColor = backgroundBrush.Color;
+                    backgroundColor.A = (byte)(opacity * 255); // Set alpha based on opacity
+
+                    if (backgroundBrush.IsFrozen)
+                    {
+                        // Create a new SolidColorBrush with the updated color
+                        border.Background = new SolidColorBrush(backgroundColor);
+                    }
+                    else
+                    {
+                        // Modify the existing brush
+                        backgroundBrush.Color = backgroundColor;
+                    }
+                }
+
+                // Adjust BorderBrush opacity
+                if (border.BorderBrush is SolidColorBrush borderBrush)
+                {
+                    Color borderColor = borderBrush.Color;
+                    borderColor.A = (byte)(opacity * 255); // Set alpha based on opacity
+
+                    if (borderBrush.IsFrozen)
+                    {
+                        // Create a new SolidColorBrush with the updated color
+                        border.BorderBrush = new SolidColorBrush(borderColor);
+                    }
+                    else
+                    {
+                        // Modify the existing brush
+                        borderBrush.Color = borderColor;
+                    }
+                }
+            }
+
+            // Adjust opacity for player borders
+            foreach (var border in _playerBorders)
+            {
+                // Adjust Background opacity
+                if (border.Background is SolidColorBrush backgroundBrush)
+                {
+                    Color backgroundColor = backgroundBrush.Color;
+                    backgroundColor.A = (byte)(opacity * 255); // Set alpha based on opacity
+
+                    if (backgroundBrush.IsFrozen)
+                    {
+                        // Create a new SolidColorBrush with the updated color
+                        border.Background = new SolidColorBrush(backgroundColor);
+                    }
+                    else
+                    {
+                        // Modify the existing brush
+                        backgroundBrush.Color = backgroundColor;
+                    }
+                }
+
+                // Adjust BorderBrush opacity
+                if (border.BorderBrush is SolidColorBrush borderBrush)
+                {
+                    Color borderColor = borderBrush.Color;
+                    borderColor.A = (byte)(opacity * 255); // Set alpha based on opacity
+
+                    if (borderBrush.IsFrozen)
+                    {
+                        // Create a new SolidColorBrush with the updated color
+                        border.BorderBrush = new SolidColorBrush(borderColor);
+                    }
+                    else
+                    {
+                        // Modify the existing brush
+                        borderBrush.Color = borderColor;
+                    }
+                }
+            }
+        }
+
+
+
+        #endregion
+
+
 
         // Added current opacity variables
         private double currentBackgroundOpacity = 1.0;
@@ -551,7 +671,6 @@ namespace GGOverlay
             }
         }
 
-
         #endregion
 
         #region Reset Settings Logic
@@ -606,10 +725,11 @@ namespace GGOverlay
 
         #region Close Overlay Logic
 
-        private void OverlayWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private void OverlayWindow_Closing(object sender, CancelEventArgs e)
         {
             SaveUserDataSettings();
-            CloseOverlay();
+            // Remove the recursive call to CloseOverlay()
+            // CloseOverlay is already being called when you want to close the window
         }
 
         private void CloseOverlayButton_Click(object sender, RoutedEventArgs e)
@@ -622,28 +742,10 @@ namespace GGOverlay
             // Set to background mode
             SetBackgroundMode();
 
-            // Hide the overlay window
-            this.Hide();
+            // Close the overlay window instead of hiding it
+            this.Close();
 
-            // Unregister the hotkey when the overlay is closed
-            var helper = new WindowInteropHelper(this);
-            UnregisterHotKey(helper.Handle, HOTKEY_ID);
-
-            // Save settings
-            SaveUserDataSettings();
-
-            // Bring Lobby window back into focus
-            var mainWindow = Application.Current.MainWindow;
-            if (mainWindow != null)
-            {
-                mainWindow.WindowState = System.Windows.WindowState.Normal; // Restore if minimized
-                mainWindow.Activate();
-            }
-            else
-            {
-                // If mainWindow is not set correctly, consider alternative methods to bring the lobby window to focus
-                // For example, if you have a reference to the lobby window, use that instead
-            }
+            // The rest of the cleanup is handled in the OnClosed method
         }
 
         #endregion
@@ -719,17 +821,17 @@ namespace GGOverlay
                             }
                         }
 
-                        Xceed.Wpf.Toolkit.MessageBox.Show("Settings loaded successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBox.Show("Settings loaded successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     else
                     {
-                        Xceed.Wpf.Toolkit.MessageBox.Show("Failed to deserialize the selected settings file.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show("Failed to deserialize the selected settings file.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Xceed.Wpf.Toolkit.MessageBox.Show($"An error occurred while loading settings: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"An error occurred while loading settings: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -761,12 +863,12 @@ namespace GGOverlay
                     string json = JsonConvert.SerializeObject(currentSettings, Formatting.Indented);
                     File.WriteAllText(selectedFile, json);
 
-                    Xceed.Wpf.Toolkit.MessageBox.Show("Settings saved successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Settings saved successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)
             {
-                Xceed.Wpf.Toolkit.MessageBox.Show($"An error occurred while saving settings: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"An error occurred while saving settings: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -784,7 +886,8 @@ namespace GGOverlay
                 TextOpacity = TextOpacitySlider.Value,
                 BackgroundOpacity = BackgroundOpacitySlider.Value,
                 // **Include the FontName**
-                FontName = currentFont
+                FontName = currentFont,
+                RulesAndPlayerBoxOpacity = RuleOpacitySlider.Value
             };
         }
 
@@ -837,9 +940,12 @@ namespace GGOverlay
                 }
             }
 
+            
             // Adjust font sizes and player boxes after applying settings
             AdjustFontSizes(UnifiedBorder);
             AdjustPlayerBoxesWidth();
+
+            SetRulesAndPlayerBoxOpacity(settings.RulesAndPlayerBoxOpacity);
         }
 
         private void AdjustPlayerBoxesWidth()
@@ -903,10 +1009,8 @@ namespace GGOverlay
             }
         }
 
-
-
         #endregion
 
-        // Rest of your code...
+        // Rest of your OverlayWindow code remains unchanged...
     }
 }

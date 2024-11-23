@@ -14,6 +14,8 @@ namespace GGOverlay
     {
         private IGameInterface _game;
         private bool _subscribed;
+        private LobbyView lobbyView;
+
 
         public static readonly RoutedCommand ToggleLogsCommand = new RoutedCommand();
 
@@ -33,22 +35,27 @@ namespace GGOverlay
 
         public void ShowLobbyView(IGameInterface game)
         {
-            this.Title = "GGOverlay - Lobby";
-            ContentArea.Content = new LobbyView(this, game);
+            if (lobbyView == null)
+            {
+                lobbyView = new LobbyView(this, game);
+            }
+            else
+            {
+                // Optionally, update the game interface if necessary
+                lobbyView.UpdateGameInterface(game);
+            }
 
-            // Store the game reference
-            _game = game;
+            ContentArea.Content = lobbyView;
 
             if (!_subscribed)
             {
                 _subscribed = true;
-                // Subscribe to the game's OnLog event
+                _game = game;
                 _game.OnLog += LogMessage;
-
-                // Optionally, handle the game's OnDisconnect event
                 _game.OnDisconnect += Game_OnDisconnect;
             }
         }
+
 
         public void ShowEditRulesView(IGameInterface game)
         {
@@ -121,9 +128,17 @@ namespace GGOverlay
             }
         }
 
+
+
         private void Game_OnDisconnect()
         {
-            // Unsubscribe from the game's OnLog event when the game disconnects
+            if (lobbyView != null)
+            {
+                lobbyView.CloseOverlayWindowIfOpen(); // Close the OverlayWindow if it's open
+                ContentArea.Content = null; // Remove LobbyView from the UI
+                lobbyView = null; // Remove the reference to allow garbage collection
+            }
+
             if (_game != null)
             {
                 _game.OnLog -= LogMessage;
@@ -132,9 +147,10 @@ namespace GGOverlay
                 _subscribed = false;
             }
 
-            // Optionally, show the launch view again
-            ShowLaunchView();
+            ShowLaunchView(); // Navigate back to the LaunchView
         }
+
+
 
         private void CopyDefaultRulesetsToUserFolder()
         {

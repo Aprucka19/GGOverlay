@@ -1,10 +1,12 @@
 ﻿using GGOverlay.Game;
 using Microsoft.Win32;
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Xceed.Wpf.AvalonDock.Controls;
 
 namespace GGOverlay
 {
@@ -12,12 +14,13 @@ namespace GGOverlay
     {
         private MainWindow _mainWindow;
         private IGameInterface _game;
+        private OverlayWindow overlayWindow; // Reference to the overlay window
 
         public LobbyView(MainWindow mainWindow, IGameInterface game)
         {
             InitializeComponent();
-            _mainWindow = mainWindow;
-            _game = game;
+            _mainWindow = mainWindow ?? throw new ArgumentNullException(nameof(mainWindow));
+            _game = game ?? throw new ArgumentNullException(nameof(game));
 
             // Set visibility of buttons based on whether hosting or joining
             if (_game is GameMaster)
@@ -31,18 +34,61 @@ namespace GGOverlay
 
             SubscribeToGameEvents();
             UpdateUIElements();
-
-
         }
+
 
         private void LaunchOverlay_Click(object sender, RoutedEventArgs e)
         {
             // Minimize the Lobby window
             _mainWindow.WindowState = WindowState.Minimized;
 
-            // Open the Overlay window
-            OverlayWindow overlay = new OverlayWindow(_game);
-            overlay.Show();
+            if (overlayWindow != null)
+            {
+                // Check if the OverlayWindow is still loaded and not closed
+                if (overlayWindow.IsLoaded)
+                {
+                    // Overlay is already open, bring it to foreground and set interactive mode
+                    overlayWindow.Dispatcher.Invoke(() =>
+                    {
+                        if (overlayWindow.WindowState == WindowState.Minimized)
+                        {
+                            overlayWindow.WindowState = WindowState.Normal;
+                        }
+                        UpdateGameInterface(_game);
+
+                        overlayWindow.Activate(); // Bring to foreground
+                        overlayWindow.SetInteractiveMode(); // Set to interactive mode
+                    });
+
+                    Debug.WriteLine("OverlayWindow is already open. Brought to foreground.");
+                    return;
+                }
+                else
+                {
+                    // OverlayWindow reference exists but it's not loaded anymore
+                    Debug.WriteLine("OverlayWindow reference exists but the window is not loaded. Resetting reference.");
+                    overlayWindow = null;
+                }
+            }
+
+            // Create and show a new OverlayWindow instance
+            overlayWindow = new OverlayWindow(_game);
+
+            // Subscribe to the Closed event using a named event handler
+            overlayWindow.Closed += OverlayWindow_Closed;
+
+            try
+            {
+                overlayWindow.Show();
+                Debug.WriteLine("OverlayWindow created and shown.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to show OverlayWindow: {ex.Message}");
+                MessageBox.Show($"Failed to open the overlay: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                overlayWindow = null;
+                return;
+            }
 
             if (_game is GameMaster gameMaster)
             {
@@ -51,18 +97,44 @@ namespace GGOverlay
         }
 
 
+        // Existing event handler in LobbyView.xaml.cs
+        private void OverlayWindow_Closed(object sender, EventArgs e)
+        {
+            Debug.WriteLine("OverlayWindow has been closed.");
+            overlayWindow = null;
+
+            // Bring the main lobby window back to focus
+            if (_mainWindow != null)
+            {
+                // Restore the window if it's minimized
+                if (_mainWindow.WindowState == WindowState.Minimized)
+                {
+                    _mainWindow.WindowState = WindowState.Normal;
+                }
+
+                // Activate the window to bring it to the foreground
+                _mainWindow.Activate();
+            }
+            else
+            {
+                Debug.WriteLine("MainWindow reference is null. Cannot activate lobby window.");
+            }
+        }
+
+
+
+
+
 
         private void SubscribeToGameEvents()
         {
             _game.UIUpdate += UpdateUIElements;
-            _game.OnDisconnect += Disconnect;
         }
 
         private void Disconnect()
         {
             _game.Stop();
-            _game = null;
-            _mainWindow.ShowLaunchView();
+
         }
 
         private void DisconnectButton_Click(object sender, RoutedEventArgs e)
@@ -70,6 +142,15 @@ namespace GGOverlay
             Disconnect();
         }
 
+        public void CloseOverlayWindowIfOpen()
+        {
+            if (overlayWindow != null && overlayWindow.IsLoaded)
+            {
+                overlayWindow.Close(); // This will trigger the Closed event
+                overlayWindow = null;
+                Debug.WriteLine("OverlayWindow closed by MainWindow.");
+            }
+        }
 
 
         private void EditRules_Click(object sender, RoutedEventArgs e)
@@ -77,6 +158,13 @@ namespace GGOverlay
             _mainWindow.ShowEditRulesView(_game);
         }
 
+
+        public void UpdateGameInterface(IGameInterface game)
+        {
+            _game = game;
+            UpdateUIElements();
+            // Update UI elements or internal state as needed
+        }
 
 
         private void UpdateGameRulesDisplay()

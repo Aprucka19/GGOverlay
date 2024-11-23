@@ -350,6 +350,7 @@ namespace GGOverlay
                 gameMaster.BroadcastGameRules();
             }
 
+            _game.RequestUIUpdate();
             // Navigate back to the Lobby view
             _mainWindow.ShowLobbyView(_game);
         }

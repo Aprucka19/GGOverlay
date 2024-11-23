@@ -64,6 +64,12 @@ namespace GGOverlay
                         }
                     }
                 }
+
+
+
+                RuleOpacitySlider.Value = userData.OverlaySettings.RulesAndPlayerBoxOpacity;
+                SetRulesAndPlayerBoxOpacity(userData.OverlaySettings.RulesAndPlayerBoxOpacity);
+
             }
             else
             {
@@ -112,6 +118,8 @@ namespace GGOverlay
 
             // **Save the current font**
             userData.OverlaySettings.FontName = currentFont;
+
+            userData.OverlaySettings.RulesAndPlayerBoxOpacity = RuleOpacitySlider.Value;
 
             // Save to file
             userData.Save();
@@ -450,7 +458,9 @@ namespace GGOverlay
                 LoadGameRules();
                 LoadLobbyMembers();
                 AdjustFontSizes(UnifiedBorder); // Ensure font sizes are adjusted on update
+                
                 ApplyTextOpacity(); // Apply text opacity if needed
+                SetRulesAndPlayerBoxOpacity(RuleOpacitySlider.Value);
                 UpdateTimerDisplay(); // Update the timer display
             });
         }

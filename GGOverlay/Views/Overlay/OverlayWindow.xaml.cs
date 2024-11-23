@@ -24,7 +24,6 @@ namespace GGOverlay
         private const uint MOD_SHIFT = 0x0004;
         private const uint VK_BACKTICK = 0xC0; // VK_OEM_3 for '`' key
 
-
         // Timer for auto-hiding the punishment display
         private DispatcherTimer punishmentTimer;
 
@@ -83,8 +82,7 @@ namespace GGOverlay
             this.Left = 0;
             this.Top = 0;
 
-            // Load settings from UserData
-            LoadUserDataSettings();
+
 
             // Load game rules and lobby members
             LoadGameRules();
@@ -106,13 +104,11 @@ namespace GGOverlay
             // Subscribe to the OnPunishmentTriggered event
             _game.OnPunishmentTriggered += HandlePunishmentTriggered;
 
-
             // Subscribe to size change event to adjust font sizes
             this.SizeChanged += OverlayWindow_SizeChanged;
 
             // Initialize ComboBoxes
             InitializeComboBoxes();
-
 
             // Initialize TimerTextBlock properties if needed
             TimerTextBlock.FontSize = 14 * fontScaleMultiplier;
@@ -123,12 +119,33 @@ namespace GGOverlay
             // Set interactive mode
             SetInteractiveMode();
 
-
-
             // Update the timer display with the initial value
             UpdateTimerDisplay();
+
+            // Load settings from UserData
+            LoadUserDataSettings();
         }
 
+
+
+
+        // Optionally, override OnClosed to perform additional cleanup
+        protected override void OnClosed(EventArgs e)
+        {
+            // Unregister the hotkey
+            var helper = new WindowInteropHelper(this);
+            UnregisterHotKey(helper.Handle, HOTKEY_ID);
+
+            // Unsubscribe from game events to prevent memory leaks
+            if (_game != null)
+            {
+                _game.UIUpdate -= OnGameUIUpdate;
+                _game.OnDisconnect -= CloseOverlay;
+                _game.OnPunishmentTriggered -= HandlePunishmentTriggered;
+            }
+
+            base.OnClosed(e);
+        }
 
         private void UpdateTimerDisplay()
         {
@@ -221,11 +238,28 @@ namespace GGOverlay
             }
         }
 
-        private void SetInteractiveMode()
+        public void SetInteractiveMode()
         {
             // Make the window interactive
             isInteractive = true;
 
+            // Update IsHitTestVisible on main elements
+            MainCanvas.IsHitTestVisible = true;
+
+            // Bring the window to the front and focus
+            this.Topmost = true;
+            this.Focusable = true;
+            this.Activate();
+
+            // Show Settings button
+            SettingsButton.Visibility = Visibility.Visible;
+            CloseOverlayButton.Visibility = Visibility.Visible;
+            FinishDrinkButton.Visibility = Visibility.Visible;
+
+            // Hide controls box initially
+            InteractiveControlsBackground.Visibility = Visibility.Collapsed;
+
+            // Update game rules' IsHitTestVisible
             foreach (var child in GameRulesPanel.Children)
             {
                 if (child is Border ruleBorder)
@@ -249,26 +283,11 @@ namespace GGOverlay
                 }
             }
 
+            // Show TimerTextBlock if needed
             if (TimerTextBlock != null)
             {
                 TimerTextBlock.Visibility = Visibility.Visible;
             }
-
-            // Update IsHitTestVisible on main elements
-            MainCanvas.IsHitTestVisible = true;
-
-            // Bring the window to the front and focus
-            this.Topmost = true;
-            this.Focusable = true;
-            this.Activate();
-
-            // Show Settings button
-            SettingsButton.Visibility = Visibility.Visible;
-            CloseOverlayButton.Visibility = Visibility.Visible;
-            FinishDrinkButton.Visibility = Visibility.Visible;
-
-            // Hide controls box initially
-            InteractiveControlsBackground.Visibility = Visibility.Collapsed;
         }
 
         private void SetBackgroundMode()

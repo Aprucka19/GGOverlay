@@ -24,6 +24,8 @@ namespace GGOverlay
         // Add other settings as needed
 
         public string FontName { get; set; } = "Segoe UI"; // Default font
+
+        public double RulesAndPlayerBoxOpacity { get; set; } = 1.0;
     }
 
     public class UserData

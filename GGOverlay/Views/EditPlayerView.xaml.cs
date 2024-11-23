@@ -46,7 +46,8 @@ namespace GGOverlay
             }
 
             _game.EditPlayer(playerName, modifier.Value, _drinkQuantity);
-            
+
+            _game.RequestUIUpdate();
 
             _mainWindow.ShowLobbyView(_game); // Return to Lobby View
         }

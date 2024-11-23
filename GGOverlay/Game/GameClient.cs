@@ -249,6 +249,7 @@ namespace GGOverlay.Game
             _networkClient.Disconnect();
             LogMessage("Client disconnected.");
             UserData.Save(); // Save UserData when stopping
+            OnDisconnect?.Invoke();
         }
 
         public async void TriggerRule(Rule rule, PlayerInfo player = null)
